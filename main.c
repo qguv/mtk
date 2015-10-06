@@ -3,21 +3,37 @@
 #define button_pin  2
 #define led_pin    13
 
-void pdelay(unsigned long int);
-void wait_for_press();
-void toggle_led(int *);
+typedef unsigned long int microseconds;
+typedef unsigned int pinstate;
 
-void pdelay(unsigned long int microseconds) {
-  delay((unsigned long int) microseconds / 1000);
-  delayMicroseconds((unsigned int) microseconds % 1000);
+microseconds off_by(microseconds, microseconds, *boolean);
+void pdelay(microseconds);
+void wait_for_press();
+void set_led(boolean);
+
+microseconds off_by(microseconds ideal, microseconds observed, *boolean is_late) {
+  if (observed > ideal) {
+    *is_late = true;
+    return observed - ideal;
+  } else {
+    *is_late = false;
+    return ideal - observed;
+  }
+}
+
+/* A more precise delay than Arduino's own with the penalty of quicker overflow
+ * (70 minutes. */
+void pdelay(microseconds us) {
+  delay((unsigned long int) us / 1000);
+  delayMicroseconds((unsigned int) us % 1000);
 }
 
 /* Attach a 10K resistor from ground to a pushbutton and pin 2. Connect the
  * other side of the button to 5V. pinMode(button_pin, INPUT); */
 void wait_for_press() {
 
-  // read the pushbutton input pin:
-  unsigned int button_state = digitalRead(button_pin);
+  // read the pushbutton input pin
+  pinstate button_state = digitalRead(button_pin);
 
   // you've got to release the button every time
   while (button_state != LOW) {
@@ -55,18 +71,16 @@ void loop() {
   int bpm = random(min_tempo, max_tempo + 1);
   
   // then convert to microseconds/beat
-  unsigned long int uspb = 6e7 / bpm;
-  Serial.println(uspb);
+  microseconds uspb = 6e7 / bpm;
 
   // prepare an array to store time measurements
   // 0:   the one beat before the first user-beat
   // 1-8: the user's keypress times
-  unsigned long int timed[9];
+  microseconds timed[9];
 
   // prepare other variables
-  unsigned long int ideal;
-  double difference;
-  int is_late;
+  microseconds ideal, error;
+  boolean is_late;
 
   Serial.println("I'll show you a tempo, then match it!");
   Serial.println("I'll give you eight beats, then tap out the next eight on the button.");
@@ -120,10 +134,9 @@ void loop() {
 
     // We then compare the user's final beat and the ideal final beat to
     // determine how far off the user was in total.
-    difference = (timed[8] - ideal) / 1e6;
-    is_late = (difference > 0);
+    error = off_by(ideal, timed[8], &is_late);
 
-    Serial.print(difference);
+    Serial.print(error / 1e6);
     Serial.print("s ");
     Serial.println(is_late ? "late" : "early");
     set_led(false);
