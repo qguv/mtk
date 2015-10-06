@@ -1,166 +1,144 @@
-#define _DEFAULT_SOURCE // usleep, timeradd, ...
-#include <stdlib.h>     // rand
-#include <time.h>       // time
-#include <stdio.h>      // printf
-#include <unistd.h>     // usleep
-#include <sys/time.h>   // gettimeofday, timeradd, ...
-
 #define max_tempo 181
-#define min_tempo 60
+#define min_tempo  60
+#define button_pin  2
+#define led_pin    13
 
-int random_tempo();
-void timeradd_repeat(int repeat, struct timeval *, struct timeval *, struct timeval *);
-void println_time(struct timeval *);
-void println_time_error(struct timeval *, struct timeval *);
+int  random_tempo();
+void wait_for_press();
+void toggle_led(int *);
 
-int random_tempo() {
-	// generate number from 0 t/m RAND_MAX
-	double r = (double) rand();
+/* Attach a 10K resistor from ground to a pushbutton and pin 2. Connect the
+ * other side of the button to 5V. pinMode(button_pin, INPUT); */
+void wait_for_press() {
 
-	// scale so that the range reflects the range of tempos
-	r *= ((float) (max_tempo - min_tempo) / RAND_MAX);
+  // read the pushbutton input pin:
+	button_state = digitalRead(button_pin);
 
-	// change minimum from zero to the actual minimum
-	return min_tempo + (int) r;
-}
+	// you've got to release the button every time
+	while (button_state != LOW) {
+		delay(5);
+		button_state = digitalRead(button_pin);
+	}
 
-// repeat > 0 please
-void timeradd_repeat(int repeat, struct timeval *begin, struct timeval *addend, struct timeval *result) {
-
-	timeradd(begin, addend, result);
-	for (int i = 1; i < repeat; i++) {
-		timeradd(result, addend, result);
+	// wait until the button is pressed
+	while (button_state != HIGH) {
+		delay(5);
+		button_state = digitalRead(button_pin);
 	}
 }
 
-void println_time(struct timeval *t) {
+int random_tempo() { return random(min_tempo, max_tempo + 1); }
 
-	// timeval works normally from 0.0 upward; display it normally
-	if (t->tv_sec >= 0) {
-		printf("%ld.%06ld\n",
-				(long int) t->tv_sec,
-				(long int) t->tv_usec
-		);
+/* Should be built into your board, remember to pinMode(led_pin, OUTPUT). */
+void toggle_led(int last) { digitalWrite(led_pin, LOW ? last : HIGH); }
 
-	// ...but timeval does weird stuff below zero. Since timeval is really tv_sec
-	// + tv_usec, values below zero will have a negative tv_sec and a positive
-	// tv_usec. For instance, -3.2 seconds will encode as -4 seconds plus 8e5
-	// microseconds. To fix this, we add one to tv_sec and subtract a million to
-	// "invert" the microsecond display (so it's hanging off the negative number
-	// above, not the negative number below). Finally, when we do this, the
-	// numbers between 0 and -1 will not have a negative sign, so we'll add that
-	// if necessary.
+void setup() {
 
-	} else {
-
-		// add the negative sign for numbers between 0 and -1
-		if (t->tv_sec == -1) { printf("-"); }
-
-		printf("%ld.%06ld\n",
-				(long int) t->tv_sec + 1,
-
-				// "flip around" the microseconds so they describe a relationship with
-				// a number closer to zero, not a number further away from zero
-				(long int) 1e6 - t->tv_usec
-		);
-	}
-}
-
-void println_time_error(struct timeval *ideal, struct timeval *actual) {
-
-	struct timeval delta;
-	char *desc;
-
-	// we'll assume we're too slow and subtract the hypothetically bigger actual
-	// time from the hypothetically smaller ideal time
-	timersub(actual, ideal, &delta);
-	desc = "slow";
-
-	// if we were fast, we just recalculate the other way 'round
-	if (delta.tv_sec < 0) {
-		timersub(ideal, actual, &delta);
-		desc = "fast";
-	}
-
-	printf("%ld.%06lds %s\n",
-			(long int) delta.tv_sec,
-			(long int) delta.tv_usec,
-			desc
-	);
-}
-
-int main() {
 	// seed the random generator
-	srand(time(NULL));
+	Serial.begin(9600);
+	randomSeed(analogRead(0));
+
+  // initialize the button pin as a input
+  pinMode(button_pin, INPUT);
+
+  // initialize the LED as an output and turn it off
+  pinMode(led_pin, OUTPUT);
+	digitalWrite(led_pin, LOW);
+}
+
+int loop() {
 
 	// make a tempo in beats/minute
 	// then convert to nanoseconds/beat
 	// and microseconds/beat
 	int bpm = random_tempo();
-	struct timeval tpb;
-	tpb.tv_sec  = 0;
-	tpb.tv_usec = 6e7 / bpm;
+	unsigned long int uspb = 6e7 / bpm;
 
 	// prepare an array to store time measurements
 	// 0:   the one beat before the first user-beat
 	// 1-8: the user's keypress times
-	struct timeval timed[9];
+	unsigned long int timed[9];
 
-	printf("\nI'll show you a tempo, then match it!\nI'll give you eight beats, then tap out the next eight\non the return key.\n\nPress return to begin.\n");
-	getchar();
+	// prepare other variables
+	int *led_is_on;
+	unsigned long int ideal;
+	double difference;
+	int is_late;
 
-	printf("Tempo is %d.\n", bpm);
-	sleep(1);
+	Serial.println("I'll show you a tempo, then match it!");
+	Serial.println("I'll give you eight beats, then tap out the next eight on the return key.");
+	Serial.println("Press the button to begin.");
+	toggle_led(&led_is_on);
+	wait_for_press();
+
+	Serial.print("Tempo is ");
+	Serial.println(bpm);
+	delay(1000);
 
 	do {
-		printf("\nHere we go!\n");
-		usleep(tpb.tv_usec);
+		Serial.println("Here we go!");
+		toggle_led(&led_is_on);
+		delayMicroseconds(uspb);
 
 		// count off eight beats
 		for (int i = 1; i <= 6; i++) {
-			printf("%d\n", i);
-			usleep(tpb.tv_usec);
+			Serial.println(i);
+			toggle_led(&led_is_on);
+			delayMicroseconds(uspb);
 		}
 
-		printf("7 ready\n");
-		usleep(tpb.tv_usec);
+		Serial.println("7 ready");
+		toggle_led(&led_is_on);
+		delayMicroseconds(uspb);
 
 		// record the beat before the user's first
-		printf("8 go\n");
-		gettimeofday(timed+0, NULL);
+		Serial.println("8 go");
+		toggle_led(&led_is_on);
+		timed[0] = micros();
 
 		// the user taps enter eight times
 		// we measure the clock time of each
 		for (int i = 1; i <= 8; i++) {
-			getchar();
-			gettimeofday(timed+i, NULL);
-			printf("%d", i);
+			wait_for_press();
+			timed[i] = micros();
+
+			Serial.println(i);
+			toggle_led(&led_is_on);
 		}
-		printf("\n\n");
-		usleep(tpb.tv_usec);
+		delayMicroseconds(uspb);
 
-		printf("Okay!\n");
-		usleep(4 * tpb.tv_usec);
-
-		// calculating score
-		struct timeval ideal;
+		Serial.println("Okay!");
+		toggle_led(&led_is_on);
+		delayMicroseconds(4 * uspb);
 
 		// Take the beat before the user started tapping. Project forward to see at
 		// what time a perfect timekeeper would tap the eighth and final beat.
-		timeradd_repeat(8, timed, &tpb, &ideal);
+		ideal = timed[0] + (tpb * 8);
 
 		// We then compare the user's final beat and the ideal final beat to
-		// determine how far off the user was in total. I'd like to divide this by
-		// tpb, but I don't think this is easily possible. #TODO
-		println_time_error(&ideal, timed+8);
-		usleep(4 * tpb.tv_usec);
+		// determine how far off the user was in total.
+		difference = (timed[8] - ideal) / 1e6;
+		is_late = (difference > 0);
 
-		printf("\nOne\n");
-		usleep(2 * tpb.tv_usec);
-		printf("more\n");
-		usleep(2 * tpb.tv_usec);
-		printf("time?\n");
-		usleep(3 * tpb.tv_usec);
+		Serial.print(difference);
+		Serial.print("s ");
+		Serial.println("late" ? is_late : "early");
+		toggle_led(&led_is_on);
+		delayMicroseconds(4 * uspb);
+
+		// I'd like to divide this by tpb to give a better statistic#TODO
+
+		Serial.println("One");
+		toggle_led(&led_is_on);
+		delayMicroseconds(2 * uspb);
+
+		Serial.println("more");
+		toggle_led(&led_is_on);
+		delayMicroseconds(2 * uspb);
+
+		Serial.println("time?");
+		toggle_led(&led_is_on);
+		delayMicroseconds(3 * uspb);
 
 	} while (1);
 }
