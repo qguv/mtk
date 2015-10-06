@@ -3,15 +3,12 @@
 #define button_pin  2
 #define led_pin    13
 
-typedef unsigned long int microseconds;
-typedef unsigned int pinstate;
-
-microseconds off_by(microseconds, microseconds, *boolean);
-void pdelay(microseconds);
+unsigned long int off_by(unsigned long int, unsigned long int, boolean *);
+void pdelay(unsigned long int);
 void wait_for_press();
 void set_led(boolean);
 
-microseconds off_by(microseconds ideal, microseconds observed, *boolean is_late) {
+unsigned long int off_by(unsigned long int ideal, unsigned long int observed, boolean *is_late) {
   if (observed > ideal) {
     *is_late = true;
     return observed - ideal;
@@ -23,7 +20,7 @@ microseconds off_by(microseconds ideal, microseconds observed, *boolean is_late)
 
 /* A more precise delay than Arduino's own with the penalty of quicker overflow
  * (70 minutes. */
-void pdelay(microseconds us) {
+void pdelay(unsigned long int us) {
   delay((unsigned long int) us / 1000);
   delayMicroseconds((unsigned int) us % 1000);
 }
@@ -33,7 +30,7 @@ void pdelay(microseconds us) {
 void wait_for_press() {
 
   // read the pushbutton input pin
-  pinstate button_state = digitalRead(button_pin);
+  unsigned int button_state = digitalRead(button_pin);
 
   // you've got to release the button every time
   while (button_state != LOW) {
@@ -71,15 +68,15 @@ void loop() {
   int bpm = random(min_tempo, max_tempo + 1);
   
   // then convert to microseconds/beat
-  microseconds uspb = 6e7 / bpm;
+  unsigned long int uspb = 6e7 / bpm;
 
   // prepare an array to store time measurements
   // 0:   the one beat before the first user-beat
   // 1-8: the user's keypress times
-  microseconds timed[9];
+  unsigned long int timed[9];
 
   // prepare other variables
-  microseconds ideal, error;
+  unsigned long int ideal, error;
   boolean is_late;
 
   Serial.println("I'll show you a tempo, then match it!");
