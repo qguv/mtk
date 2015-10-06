@@ -3,9 +3,14 @@
 #define button_pin  2
 #define led_pin    13
 
-int  random_tempo();
+void pdelay(unsigned long int);
 void wait_for_press();
 void toggle_led(int *);
+
+void pdelay(unsigned long int microseconds) {
+  delay((unsigned long int) microseconds / 1000);
+  delayMicroseconds((unsigned int) microseconds % 1000);
+}
 
 /* Attach a 10K resistor from ground to a pushbutton and pin 2. Connect the
  * other side of the button to 5V. pinMode(button_pin, INPUT); */
@@ -27,9 +32,6 @@ void wait_for_press() {
   }
 }
 
-// Far more straightforward on the Arduino than in standard C!
-int random_tempo() { return random(min_tempo, max_tempo + 1); }
-
 /* Should be built into your board, remember to pinMode(led_pin, OUTPUT). */
 void set_led(boolean state) { digitalWrite(led_pin, state ? HIGH : LOW); }
 
@@ -49,11 +51,12 @@ void setup() {
 
 void loop() {
 
-  // make a tempo in beats/minute
-  // then convert to nanoseconds/beat
-  // and microseconds/beat
-  int bpm = random_tempo();
+  // Far more straightforward on the Arduino than in standard C!
+  int bpm = random(min_tempo, max_tempo + 1);
+  
+  // then convert to microseconds/beat
   unsigned long int uspb = 6e7 / bpm;
+  Serial.println(uspb);
 
   // prepare an array to store time measurements
   // 0:   the one beat before the first user-beat
@@ -78,18 +81,18 @@ void loop() {
   do {
     Serial.println("Here we go!");
     set_led(false);
-    delayMicroseconds(uspb);
+    pdelay(uspb);
 
     // count off eight beats
     for (int i = 1; i <= 6; i++) {
       Serial.println(i);
       set_led(i % 2);
-      delayMicroseconds(uspb);
+      pdelay(uspb);
     }
 
     Serial.println("7 ready");
     set_led(true);
-    delayMicroseconds(uspb);
+    pdelay(uspb);
 
     // record the beat before the user's first
     Serial.println("8 go");
@@ -105,11 +108,11 @@ void loop() {
       Serial.println(i);
       set_led(i % 2);
     }
-    delayMicroseconds(uspb);
+    pdelay(uspb);
 
     Serial.println("Okay!");
     set_led(true);
-    delayMicroseconds(4 * uspb);
+    pdelay(4 * uspb);
 
     // Take the beat before the user started tapping. Project forward to see at
     // what time a perfect timekeeper would tap the eighth and final beat.
@@ -124,21 +127,21 @@ void loop() {
     Serial.print("s ");
     Serial.println(is_late ? "late" : "early");
     set_led(false);
-    delayMicroseconds(4 * uspb);
+    pdelay(4 * uspb);
 
     // I'd like to divide this by tpb to give a better statistic#TODO
 
     Serial.println("One");
     set_led(true);
-    delayMicroseconds(2 * uspb);
+    pdelay(2 * uspb);
 
     Serial.println("more");
     set_led(false);
-    delayMicroseconds(2 * uspb);
+    pdelay(2 * uspb);
 
     Serial.println("time?");
     set_led(true);
-    delayMicroseconds(3 * uspb);
+    pdelay(3 * uspb);
 
   } while (1);
 }
