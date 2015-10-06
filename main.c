@@ -27,10 +27,11 @@ void wait_for_press() {
   }
 }
 
+// Far more straightforward on the Arduino than in standard C!
 int random_tempo() { return random(min_tempo, max_tempo + 1); }
 
 /* Should be built into your board, remember to pinMode(led_pin, OUTPUT). */
-void toggle_led(int *last) { digitalWrite(led_pin, LOW ? *last : HIGH); }
+void set_led(boolean state) { digitalWrite(led_pin, state ? HIGH : LOW); }
 
 void setup() {
 
@@ -60,15 +61,14 @@ void loop() {
   unsigned long int timed[9];
 
   // prepare other variables
-  int *led_is_on;
   unsigned long int ideal;
   double difference;
   int is_late;
 
   Serial.println("I'll show you a tempo, then match it!");
-  Serial.println("I'll give you eight beats, then tap out the next eight on the return key.");
+  Serial.println("I'll give you eight beats, then tap out the next eight on the button.");
   Serial.println("Press the button to begin.");
-  toggle_led(led_is_on);
+  set_led(true);
   wait_for_press();
 
   Serial.print("Tempo is ");
@@ -77,23 +77,23 @@ void loop() {
 
   do {
     Serial.println("Here we go!");
-    toggle_led(led_is_on);
+    set_led(false);
     delayMicroseconds(uspb);
 
     // count off eight beats
     for (int i = 1; i <= 6; i++) {
       Serial.println(i);
-      toggle_led(led_is_on);
+      set_led(i % 2);
       delayMicroseconds(uspb);
     }
 
     Serial.println("7 ready");
-    toggle_led(led_is_on);
+    set_led(true);
     delayMicroseconds(uspb);
 
     // record the beat before the user's first
     Serial.println("8 go");
-    toggle_led(led_is_on);
+    set_led(false);
     timed[0] = micros();
 
     // the user taps enter eight times
@@ -103,12 +103,12 @@ void loop() {
       timed[i] = micros();
 
       Serial.println(i);
-      toggle_led(led_is_on);
+      set_led(i % 2);
     }
     delayMicroseconds(uspb);
 
     Serial.println("Okay!");
-    toggle_led(led_is_on);
+    set_led(true);
     delayMicroseconds(4 * uspb);
 
     // Take the beat before the user started tapping. Project forward to see at
@@ -123,21 +123,21 @@ void loop() {
     Serial.print(difference);
     Serial.print("s ");
     Serial.println(is_late ? "late" : "early");
-    toggle_led(led_is_on);
+    set_led(false);
     delayMicroseconds(4 * uspb);
 
     // I'd like to divide this by tpb to give a better statistic#TODO
 
     Serial.println("One");
-    toggle_led(led_is_on);
+    set_led(true);
     delayMicroseconds(2 * uspb);
 
     Serial.println("more");
-    toggle_led(led_is_on);
+    set_led(false);
     delayMicroseconds(2 * uspb);
 
     Serial.println("time?");
-    toggle_led(led_is_on);
+    set_led(true);
     delayMicroseconds(3 * uspb);
 
   } while (1);
