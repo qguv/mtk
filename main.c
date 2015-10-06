@@ -2,11 +2,18 @@
 #define min_tempo  60
 #define button_pin  2
 #define led_pin    13
+#define to_s(X) String(X).c_str()
+
+#include "U8glib.h"
+U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_NO_ACK);
+// Display: http://www.hobbyelectronica.nl/product/128x64-oled-geel-blauw-i2c/
+// OLED pins: SDA -> A4, SCL -> A5
 
 unsigned long int off_by(unsigned long int, unsigned long int, boolean *);
 void pdelay(unsigned long int);
 void wait_for_press();
 void set_led(boolean);
+
 
 unsigned long int off_by(unsigned long int ideal, unsigned long int observed, boolean *is_late) {
   if (observed > ideal) {
@@ -60,12 +67,16 @@ void setup() {
   // initialize the LED as an output and turn it off
   pinMode(led_pin, OUTPUT);
   digitalWrite(led_pin, LOW);
+
+  u8g.firstPage();
+  //u8g.setRot180();
 }
 
 void loop() {
 
   // Far more straightforward on the Arduino than in standard C!
   int bpm = random(min_tempo, max_tempo + 1);
+  const char *bpm_a = to_s(bpm);
   
   // then convert to microseconds/beat
   unsigned long int uspb = 6e7 / bpm;
@@ -79,34 +90,39 @@ void loop() {
   unsigned long int ideal, error;
   boolean is_late;
 
-  Serial.println("I'll show you a tempo, then match it!");
-  Serial.println("I'll give you eight beats, then tap out the next eight on the button.");
-  Serial.println("Press the button to begin.");
+  char *c1[] = {"I'll show you", "a tempo, then", "match it!   [>]"};
+  print(bpm_a, c1, 3);
   set_led(true);
   wait_for_press();
 
-  Serial.print("Tempo is ");
-  Serial.println(bpm);
-  delay(1000);
+  char *c2[] = {"I'll give you", "8 beats, then", "tap out the [>]"};
+  print(bpm_a, c2, 3);
+  set_led(false);
+  wait_for_press();
+
+  char *c3[] = {"next 8 on the", "button. Press", "to start!   [>]"};
+  print(bpm_a, c3, 3);
+  set_led(true);
+  wait_for_press();
 
   do {
-    Serial.println("Here we go!");
+    println(bpm_a, "Here we go!");
     set_led(false);
     pdelay(uspb);
 
     // count off eight beats
     for (int i = 1; i <= 6; i++) {
-      Serial.println(i);
+      println(bpm_a, to_s(i));
       set_led(i % 2);
       pdelay(uspb);
     }
 
-    Serial.println("7 ready");
+    println(bpm_a, "7 ready");
     set_led(true);
     pdelay(uspb);
 
     // record the beat before the user's first
-    Serial.println("8 go");
+    println(bpm_a, "8 go");
     set_led(false);
     timed[0] = micros();
 
@@ -116,12 +132,12 @@ void loop() {
       wait_for_press();
       timed[i] = micros();
 
-      Serial.println(i);
+      println(bpm_a, to_s(i));
       set_led(i % 2);
     }
     pdelay(uspb);
 
-    Serial.println("Okay!");
+    println(bpm_a, "Okay!");
     set_led(true);
     pdelay(4 * uspb);
 
@@ -133,25 +149,44 @@ void loop() {
     // determine how far off the user was in total.
     error = off_by(ideal, timed[8], &is_late);
 
-    Serial.print(error / 1e6);
-    Serial.print("s ");
-    Serial.println(is_late ? "late" : "early");
+    println(bpm_a, to_s(error / 1e6));
+    pdelay(2 * uspb);
     set_led(false);
-    pdelay(4 * uspb);
+
+    println(bpm_a, is_late ? "late" : "early");
+    pdelay(2 * uspb);
 
     // I'd like to divide this by tpb to give a better statistic#TODO
 
-    Serial.println("One");
+    println(bpm_a, "One");
     set_led(true);
     pdelay(2 * uspb);
 
-    Serial.println("more");
+    println(bpm_a, "more");
     set_led(false);
     pdelay(2 * uspb);
 
-    Serial.println("time?");
+    println(bpm_a, "time?");
     set_led(true);
     pdelay(3 * uspb);
 
   } while (1);
+}
+
+void print(const char *bpm, char **body, int lines) {
+  u8g.nextPage();
+  u8g.setFont(u8g_font_unifont);
+  u8g.setPrintPos(0, 10);
+  u8g.print("TEMPO ");
+  u8g.setPrintPos(60, 10);
+  u8g.print(bpm);
+  for (int i = 0; i < lines; i++) {
+    u8g.setPrintPos(0, 30 + (25 * i));
+    u8g.print(body[i]);
+  }
+}
+
+void println(const char *bpm, const char *body) {
+  char *body_wrap[] = {(char *) body};
+  print(bpm, body_wrap, 1);
 }
