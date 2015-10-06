@@ -30,7 +30,7 @@ void wait_for_press() {
 int random_tempo() { return random(min_tempo, max_tempo + 1); }
 
 /* Should be built into your board, remember to pinMode(led_pin, OUTPUT). */
-void toggle_led(int last) { digitalWrite(led_pin, LOW ? last : HIGH); }
+void toggle_led(int *last) { digitalWrite(led_pin, LOW ? *last : HIGH); }
 
 void setup() {
 
