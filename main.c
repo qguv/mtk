@@ -4,10 +4,10 @@
 #define led_pin    13
 #define buzzer_pin  3
 
-#include "U8glib.h"
-U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_NO_ACK);
 // Display: http://www.hobbyelectronica.nl/product/128x64-oled-geel-blauw-i2c/
 // OLED pins: SDA -> A4, SCL -> A5
+#include "U8glib.h"
+U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_NO_ACK);
 
 unsigned long int off_by(unsigned long int, unsigned long int, boolean *);
 void pdelay(unsigned long int, unsigned long int *);
@@ -102,7 +102,7 @@ void loop() {
   unsigned long int timed[8];
 
   // prepare phrases
-  char *title[] = {"", " ~ RHYTHMOID ~ ", ""};
+  char *title[] = {" ~ RHYTHMOID ~", "", ""};
   char *p1[] = {"I'll show you a",
                 "tempo, then try",
                 "to match it!   "};
@@ -224,10 +224,12 @@ void print_many(const char *bpm, char *body[3]) {
   u8g.firstPage();
   do {
     u8g.setFont(u8g_font_unifont);
-    u8g.setPrintPos(0, 10);
-    u8g.print("TEMPO ");
-    u8g.setPrintPos(45, 10);
-    u8g.print(bpm);
+    if (bpm[0] != '\0') {
+      u8g.setPrintPos(0, 10);
+      u8g.print("TEMPO ");
+      u8g.setPrintPos(45, 10);
+      u8g.print(bpm);
+    }
     for (int i = 0; i < 3; i++) {
       u8g.setPrintPos(0, 30 + (15 * i));
       u8g.print(body[i]);
