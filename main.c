@@ -1,7 +1,6 @@
 #define max_tempo 181
 #define min_tempo  60
 #define button_pin  2
-#define led_pin    13
 #define buzzer_pin  3
 
 // Display: http://www.hobbyelectronica.nl/product/128x64-oled-geel-blauw-i2c/
@@ -13,6 +12,8 @@ unsigned long int off_by(unsigned long int, unsigned long int, boolean *);
 void pdelay(unsigned long int, unsigned long int *);
 void wait_for_press();
 void beat(boolean);
+void print_many(const char *, char *[3]);
+void print_one(const char *, const char *);
 
 unsigned long int off_by(unsigned long int ideal, unsigned long int observed, boolean *is_late) {
   if (observed > ideal) {
@@ -57,15 +58,39 @@ void wait_for_press() {
   }
 }
 
-/* Should be built into your board, remember to pinMode(led_pin, OUTPUT). */
+/* Add to a digital out, remember to pinMode(buzzer_pin, OUTPUT). */
 void beat(boolean state) {
-  digitalWrite(led_pin, state ? HIGH : LOW);
-  for (int i = 0; i < 20; i++) {
+  int cycles     = state ?  20 :   15;
+  int delay_time = state ? 750 : 1000;
+  for (int i = 0; i < cycles; i++) {
     digitalWrite(buzzer_pin, HIGH);
-    delayMicroseconds(750);
+    delayMicroseconds(delay_time);
     digitalWrite(buzzer_pin, LOW);
-    delayMicroseconds(750);
+    delayMicroseconds(delay_time);
   }
+}
+
+// The body string array must be three lines.
+void print_many(const char *bpm, char *body[3]) {
+  u8g.firstPage();
+  do {
+    u8g.setFont(u8g_font_unifont);
+    if (bpm[0] != '\0') {
+      u8g.setPrintPos(0, 10);
+      u8g.print("TEMPO ");
+      u8g.setPrintPos(45, 10);
+      u8g.print(bpm);
+    }
+    for (int i = 0; i < 3; i++) {
+      u8g.setPrintPos(0, 30 + (15 * i));
+      u8g.print(body[i]);
+    }
+  } while (u8g.nextPage());
+}
+
+void print_one(const char *bpm, const char *body) {
+  char *body_wrap[] = {"", (char *) body, ""};
+  print_many(bpm, body_wrap);
 }
 
 void setup() {
@@ -77,12 +102,9 @@ void setup() {
   // initialize the button pin as a input
   pinMode(button_pin, INPUT);
 
-  // initialize the LED as an output and turn it off
-  pinMode(led_pin, OUTPUT);
-  digitalWrite(led_pin, LOW);
-
   // initialize the buzzer as an output
   pinMode(buzzer_pin, OUTPUT);
+  digitalWrite(buzzer_pin, LOW);
 
   u8g.firstPage();
   //u8g.setRot180();
@@ -102,7 +124,7 @@ void loop() {
   unsigned long int timed[8];
 
   // prepare phrases
-  char *title[] = {" ~ RHYTHMOID ~", "", ""};
+  char *title[] = {" ~ RHYTHMOID ~", "press to begin", ""};
   char *p1[] = {"I'll show you a",
                 "tempo, then try",
                 "to match it!   "};
@@ -133,7 +155,11 @@ void loop() {
   boolean is_late;
   char result_s[16];
 
+
+  // startup chime and screen
   print_many("", title);
+  beat(true);
+  beat(false);
   beat(true);
   wait_for_press();
 
@@ -142,7 +168,7 @@ void loop() {
   wait_for_press();
 
   print_many(bpm_s, p2);
-  beat(true);
+  beat(false);
   wait_for_press();
 
   print_many(bpm_s, p3);
@@ -151,7 +177,7 @@ void loop() {
 
   last_beat = micros();
   print_one(bpm_s, "");
-  beat(true);
+  beat(false);
   pdelay(uspb, &last_beat);
 
   do {
@@ -160,14 +186,14 @@ void loop() {
     pdelay(uspb, &last_beat);
 
     // count off eight beats
-    for (int i = 1; i <= 6; i++) {
-      print_one(bpm_s, count[i - 1]);
-      beat(i % 2);
+    for (int i = 0; i < 6; i++) {
+      print_one(bpm_s, count[i]);
+      beat(i % 4 == 0);
       pdelay(uspb, &last_beat);
     }
 
     print_many(bpm_s, ready);
-    beat(true);
+    beat(false);
     pdelay(uspb, &last_beat);
 
     print_many(bpm_s, go);
@@ -180,12 +206,13 @@ void loop() {
       timed[i] = micros();
 
       print_one(bpm_s, count[i]);
-      beat(!(i % 2));
+      beat(i % 4 == 0);
     }
     last_beat = timed[7];
     pdelay(uspb, &last_beat);
 
     print_one(bpm_s, "     Okay!");
+    beat(false);
     beat(true);
     pdelay(4 * uspb, &last_beat);
 
@@ -200,12 +227,13 @@ void loop() {
     (String("  ") + String(error / 1e6) + String(is_late ? " late" : " early")).toCharArray(result_s, 16);
     print_one(bpm_s, result_s);
     beat(false);
+    beat(true);
     pdelay(4 * uspb, &last_beat);
 
     // I'd like to divide this by tpb to give a better statistic #TODO
 
     print_many(bpm_s, p4);
-    beat(true);
+    beat(false);
     pdelay(2 * uspb, &last_beat);
 
     print_many(bpm_s, p5);
@@ -213,31 +241,8 @@ void loop() {
     pdelay(2 * uspb, &last_beat);
 
     print_many(bpm_s, p6);
-    beat(true);
+    beat(false);
     pdelay(3 * uspb, &last_beat);
 
   } while (1);
-}
-
-// The body string array must be three lines.
-void print_many(const char *bpm, char *body[3]) {
-  u8g.firstPage();
-  do {
-    u8g.setFont(u8g_font_unifont);
-    if (bpm[0] != '\0') {
-      u8g.setPrintPos(0, 10);
-      u8g.print("TEMPO ");
-      u8g.setPrintPos(45, 10);
-      u8g.print(bpm);
-    }
-    for (int i = 0; i < 3; i++) {
-      u8g.setPrintPos(0, 30 + (15 * i));
-      u8g.print(body[i]);
-    }
-  } while (u8g.nextPage());
-}
-
-void print_one(const char *bpm, const char *body) {
-  char *body_wrap[] = {"", (char *) body, ""};
-  print_many(bpm, body_wrap);
 }
