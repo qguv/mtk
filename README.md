@@ -1,6 +1,8 @@
 # Rhythmoid
 _a very simple rhythm game and shield for the Arduino Nano_
 
+<img src="rhythmoid_pcb.png" alt="Rhythmoid PCB" style="width:400px;" />
+
 ## Parts
 
   - [Arduino Nano](https://www.arduino.cc/en/Main/ArduinoBoardNano) or compatible device; if you're not using the custom shield PCB, any Arduino will work
@@ -23,9 +25,7 @@ Look at [the included Eagle files](eagle/). Here's a short explanation:
 
 ## Shield PCB
 
-![Rhythmoid PCB](rhythmoid_pcb.png)
-
-If you like the board as it is, you can [order it from OSH Park](https://oshpark.com/shared_projects/O3bcMjo5) without having to bother with EAGLE. I haven't tested it yet; I've only just ordered it myself! I don't get any money from your order; OSH Park is a simple group ordering service, and my design is open anyway.
+Pictured above; will add pictures of the finished product once I'm through building one. If you like the board as it is, you can [order it from OSH Park](https://oshpark.com/shared_projects/O3bcMjo5) without having to bother with EAGLE. I haven't tested it yet; I've only just ordered it myself! I don't get any money from your order; OSH Park is a simple group ordering service, and my design is open anyway.
 
 ## Gameplay
 
