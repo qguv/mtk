@@ -25,6 +25,8 @@ Look at [the included Eagle files](eagle/). Here's a short explanation:
 
 ![Rhythmoid PCB](rhythmoid_pcb.png)
 
+If you like the board as it is, you can [order it from OSH Park](https://oshpark.com/shared_projects/O3bcMjo5) without having to bother with EAGLE. I haven't tested it yet; I've only just ordered it myself! I don't get any money from your order; OSH Park is a simple group ordering service, and my design is open anyway.
+
 ## Gameplay
 
 Press the button to get through the initial menus. A tempo will be chosen pseudo-randomly between 60 (clock) and 180 (hardstyle). The board will count eight beats at that tempo. You then tap out the next eight at the same tempo. It will tell you how much, in seconds, you drifted from the original tempo. More sophisticated statistics coming soon; I'd like a score that allows fairly equal comparison between performance at different tempos.
