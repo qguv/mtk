@@ -281,67 +281,80 @@ void entropy() {
   // available bases, in order
   // end in zero so I don't have to count the number of elements
   int bases[] = {10, 16, 6, 20, 12, 2, 6, 8, 4, 3, 7, 0};
+  int base_i = 0;
+  int base;
+  char base_a[8];
 
   // digits correspond to each base
-  char *digits = "0123456789abcdefghij";
+  char digits[] = "0123456789abcdefghij";
 
-  // to store the current base as a string (String#toCharArray)
-  char *base_s = "  ";
+  // string buffers
+  char line[16];
+  char message[3][16];
+  char *message_disp[3];
 
-  // print_many display buffer
-  char *message[3] = { "               ",
-                       "Choose a base: ",
-                       "               " };
-
-  // generate string line-by-line
-  char head[16];
-
-  // index and value of current base in list
-  int base_i, base;
-
-  base_i = 0;
+  // once you're in the mode, you can't return to the menu unless you reset
   while (true) {
 
-    // display the current base
-    base = bases[base_i];
-    String(base).toCharArray(message[2], 3);
-    print_many("Entropy", message);
+    // iterate through possible bases until user chooses one by holding
+    do {
 
-    if (wait_was_that_a_hold()) { 
+      make_sound(beep::LO);
 
-      do {
-        // generate random string
-        for (int row = 0; row < 3; row++) {
-          for (int col = 0; col < 15; col++) {
-            message[row][col] = digits[random(0, base + 1)];
-          }
-          message[row][15] = '\0';
-        }
+      // grab the current base and move the index to the next (not selected) base
+      base = bases[base_i++];
 
-        // display the random string
-        strcpy(head, "Entropy base ");
-        strcat(head, base_s);
-        print_many(head, message);
+      // reset if we run out of bases
+      if (base == 0) {
         base_i = 0;
+        base = bases[base_i++];
+      }
 
-      // if you hold, you'll choose a new base.
-      // if you tap, you'll get new random numbers in the same base.
-      } while (!wait_was_that_a_hold());
-    }
+      // display the base to the user
+      (String("Base ") + String(base)).toCharArray(base_a, 8);
+      strcpy(message[0], "");
+      strcpy(message[1], base_a);
+      message_disp[0] = &message[0][0];
+      message_disp[1] = &message[1][0];
+      message_disp[2] = &message[0][0];
+      print_many("Choose a base:", message_disp);
 
-    // reset if we run out of bases
-    if (bases[++base_i] == 0) { base_i = 0; }
+    // iterate through possible bases until user chooses one by holding
+    } while (!wait_was_that_a_hold());
+
+    // user has chosen a base
+    // give random numbers until user asks for another base by holding
+    do {
+
+      base_i = 0;
+      make_sound(beep::RISE);
+
+      for (int row = 0; row < 3; row++) {
+        for (int col = 0; col < 15; col++) {
+          line[col] = digits[random(0, base)];
+        }
+        line[15] = '\0';
+        strcpy(message[row], line);
+      }
+      // print random digits in chosen base
+      message_disp[0] = &message[0][0];
+      message_disp[1] = &message[1][0];
+      message_disp[2] = &message[2][0];
+      print_many(&base_a[0], message_disp);
+
+    // touch continues, hold resets to base selection
+    } while (!wait_was_that_a_hold());
   }
 }
 
 void menu() {
   char *titles[][3] = {{"",
-                        "    8 by 2",
+                        "    Play a",
                         "  rhythm game"},
 
                        {"",
-                        "Generate random",
-                        "numbers, etc."}};
+                        "    Collect",
+                        "    entropy"}};
 
   void (*funcs[])() = {eight_by_two, entropy};
 
