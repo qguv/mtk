@@ -165,18 +165,10 @@ void eight_by_two() {
   unsigned long int timed[8];
 
   // prepare phrases
-  char *p1[] = {"I'll show you a",
-                "tempo, then try",
-                "to match it!   "};
-  char *p2[] = {"I'll give you 8",
-                "beats, then tap",
-                "the next 8 on  "};
-  char *p3[] = {"the button.    ",
-                "Press to start!", ""};
-  char *p4[] = {"     One", "", ""};
-  char *p5[] = {"     One",
+  char *p0[] = {"     One", "", ""};
+  char *p1[] = {"     One",
                 "     more", ""};
-  char *p6[] = {"     One",
+  char *p2[] = {"     One",
                 "     more",
                 "     time?"};
   char *count[] = {"       1",
@@ -194,18 +186,6 @@ void eight_by_two() {
   unsigned long int ideal, error, last_beat;
   boolean is_late;
   char result_s[16];
-
-  print_many(bpm_s, p1);
-  make_sound(beep::LO);
-  wait_for_press();
-
-  print_many(bpm_s, p2);
-  make_sound(beep::LO);
-  wait_for_press();
-
-  print_many(bpm_s, p3);
-  make_sound(beep::LO);
-  wait_for_press();
 
   last_beat = micros();
   print_one(bpm_s, "");
@@ -262,15 +242,15 @@ void eight_by_two() {
 
     // I'd like to divide this by tpb to give a better statistic #TODO
 
-    print_many(bpm_s, p4);
+    print_many(bpm_s, p0);
     make_sound(beep::LO);
     pdelay(2 * uspb, &last_beat);
 
-    print_many(bpm_s, p5);
+    print_many(bpm_s, p1);
     make_sound(beep::LO);
     pdelay(2 * uspb, &last_beat);
 
-    print_many(bpm_s, p6);
+    print_many(bpm_s, p2);
     make_sound(beep::LO);
     pdelay(3 * uspb, &last_beat);
   }
