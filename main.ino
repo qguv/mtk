@@ -360,8 +360,15 @@ void setup() {
   // seed the random generator
   Serial.begin(9600);
   long int seed = 0;
-  for (int i = 0; i < sizeof(long int); i++) {
-    seed &= (analogRead(0) << i);
+
+  // we'll make a random seed by sampling bits of noise until we've filled a
+  // long int, the type used to seed arduino's random() function
+  for (int i = 0; i < (sizeof(long int) * 8); i++) {
+
+    // sample some analog noise
+    // take the least significant bit
+    // prepend it to an array of bits represented by a long int
+    seed |= (((long int) (analogRead(0) & 1)) << i);
   }
   randomSeed(seed);
 
