@@ -302,7 +302,7 @@ void entropy() {
       print_many(" Choose a base:", message_disp);
 
       // move to next or first base on press until user chooses one by holding
-      if (!wait_was_that_a_hold()) { break; }
+      if (wait_was_that_a_hold()) { break; }
       make_sound(beep::LO);
     }
 
