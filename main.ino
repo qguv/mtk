@@ -263,7 +263,7 @@ void entropy() {
   int bases[] = {10, 16, 6, 20, 12, 2, 6, 8, 4, 3, 7, 0};
   int base_i = 0;
   int base;
-  char base_a[8];
+  char base_a[12];
 
   // digits correspond to each base
   char digits[] = "0123456789abcdefghij";
@@ -291,13 +291,13 @@ void entropy() {
       }
 
       // display the base to the user
-      (String("Base ") + String(base)).toCharArray(base_a, 8);
+      (String("    Base ") + String(base)).toCharArray(base_a, 12);
       strcpy(message[0], "");
       strcpy(message[1], base_a);
       message_disp[0] = &message[0][0];
       message_disp[1] = &message[1][0];
       message_disp[2] = &message[0][0];
-      print_many("Choose a base:", message_disp);
+      print_many(" Choose a base:", message_disp);
 
     // iterate through possible bases until user chooses one by holding
     } while (!wait_was_that_a_hold());
@@ -341,7 +341,7 @@ void menu() {
   // Display start screens to the user. When adding new games, increment num_modes
   while (true) {
     for (int i = 0; i < num_modes; i++) {
-      print_many("Choose:", titles[i]);
+      print_many("    Choose:", titles[i]);
       if (wait_was_that_a_hold()) { funcs[i](); i--; }
       make_sound(beep::RISE);
     }
