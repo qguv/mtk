@@ -283,13 +283,15 @@ void entropy() {
   int bases[] = {10, 16, 6, 20, 12, 2, 6, 8, 4, 3, 7, 0};
 
   // digits correspond to each base
-  char digits[] = "0123456789abcdefghij";
+  char *digits = "0123456789abcdefghij";
 
   // to store the current base as a string (String#toCharArray)
-  char base_s[3];
+  char *base_s = "  ";
 
   // print_many display buffer
-  char *message[3] = { "", "Choose a base:", "" };
+  char *message[3] = { "               ",
+                       "Choose a base: ",
+                       "               " };
 
   // generate string line-by-line
   char head[16];
@@ -299,6 +301,7 @@ void entropy() {
 
   base_i = 0;
   while (true) {
+
     // display the current base
     base = bases[base_i];
     String(base).toCharArray(message[2], 3);
