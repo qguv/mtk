@@ -381,7 +381,7 @@ void setup() {
 }
 
 void loop() {
-  char *greeting[3] = {"Compiled on", __DATE__, "at " __TIME__};
+  char *greeting[3] = {"  Compiled on", "  " __DATE__, "  at " __TIME__};
   print_many("    Welcome", greeting);
   make_sound(beep::GREET);
   delay(400);
