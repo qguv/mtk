@@ -377,7 +377,8 @@ void setup() {
 }
 
 void loop() {
-  print_one(" The Appliance ", "    Welcome    ");
+  char *greeting[3] = {"Compiled on", __DATE__, "at " __TIME__};
+  print_many("    Welcome", greeting);
   make_sound(beep::GREET);
   delay(400);
   menu();
