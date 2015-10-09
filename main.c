@@ -2,18 +2,29 @@
 #define min_tempo  60
 #define button_pin  2
 #define buzzer_pin  3
+#define num_modes   2
+#define hold_threshold 300000 // in microseconds
 
 // Display: http://www.hobbyelectronica.nl/product/128x64-oled-geel-blauw-i2c/
 // OLED pins: SDA -> A4, SCL -> A5
 #include "U8glib.h"
 U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_NO_ACK);
 
+namespace beep {
+  typedef enum tone { LO, HI, RISE, FALL, GREET, ERR } tone;
+}
+
 unsigned long int off_by(unsigned long int, unsigned long int, boolean *);
 void pdelay(unsigned long int, unsigned long int *);
 void wait_for_press();
-void beat(boolean);
+boolean wait_was_that_a_hold();
+void raw_beep(int, int);
+void make_sound(beep::tone);
 void print_many(const char *, char *[3]);
 void print_one(const char *, const char *);
+void straight_eight();
+void entropy();
+void menu();
 
 unsigned long int off_by(unsigned long int ideal, unsigned long int observed, boolean *is_late) {
   if (observed > ideal) {
@@ -58,10 +69,31 @@ void wait_for_press() {
   }
 }
 
-/* Add to a digital out, remember to pinMode(buzzer_pin, OUTPUT). */
-void beat(boolean state) {
-  int cycles     = state ?  20 :   15;
-  int delay_time = state ? 750 : 1000;
+// pauses execution until the button is pressed and released. returns how long the button was depressed.
+boolean wait_was_that_a_hold() {
+
+  wait_for_press();
+  unsigned long int start = micros();
+  unsigned int button_state;
+
+  // wait for button release or hold-sensing timeout
+  while (true) {
+    delay(5);
+    button_state = digitalRead(button_pin);
+
+    // hold-sensing timeout reached
+    if ((micros() - start) > hold_threshold) {
+      return true;
+
+    // button released before timeout expired
+    } else if (button_state == LOW) {
+      return false;
+    }
+  }
+}
+
+// Add to a digital out, remember to pinMode(buzzer_pin, OUTPUT).
+void raw_beep(int cycles, int delay_time) {
   for (int i = 0; i < cycles; i++) {
     digitalWrite(buzzer_pin, HIGH);
     delayMicroseconds(delay_time);
@@ -70,16 +102,42 @@ void beat(boolean state) {
   }
 }
 
+void make_sound(beep::tone which) {
+  switch (which) {
+    case beep::LO:
+      raw_beep(15, 1000);
+      break;
+    case beep::HI:
+      raw_beep(20, 750);
+      break;
+    case beep::RISE:
+      make_sound(beep::LO);
+      make_sound(beep::HI);
+      break;
+    case beep::FALL:
+      make_sound(beep::HI);
+      make_sound(beep::LO);
+      break;
+    case beep::GREET:
+      make_sound(beep::HI);
+      make_sound(beep::LO);
+      make_sound(beep::HI);
+      break;
+    case beep::ERR:
+      make_sound(beep::FALL);
+      make_sound(beep::FALL);
+      break;
+  }
+}
+
 // The body string array must be three lines.
-void print_many(const char *bpm, char *body[3]) {
+void print_many(const char *head, char *body[3]) {
   u8g.firstPage();
   do {
     u8g.setFont(u8g_font_unifont);
-    if (bpm[0] != '\0') {
+    if (head[0] != '\0') {
       u8g.setPrintPos(0, 10);
-      u8g.print("TEMPO ");
-      u8g.setPrintPos(45, 10);
-      u8g.print(bpm);
+      u8g.print(head);
     }
     for (int i = 0; i < 3; i++) {
       u8g.setPrintPos(0, 30 + (15 * i));
@@ -93,29 +151,12 @@ void print_one(const char *bpm, const char *body) {
   print_many(bpm, body_wrap);
 }
 
-void setup() {
-
-  // seed the random generator
-  Serial.begin(9600);
-  randomSeed(analogRead(0));
-
-  // initialize the button pin as a input
-  pinMode(button_pin, INPUT);
-
-  // initialize the buzzer as an output
-  pinMode(buzzer_pin, OUTPUT);
-  digitalWrite(buzzer_pin, LOW);
-
-  u8g.firstPage();
-  //u8g.setRot180();
-}
-
-void loop() {
+void eight_by_two() {
 
   // Far more straightforward on the Arduino than in standard C!
   int bpm = random(min_tempo, max_tempo + 1);
   char bpm_s[16];
-  String(bpm).toCharArray(bpm_s, 16);
+  (String("TEMPO ") + String(bpm)).toCharArray(bpm_s, 16);
   
   // then convert to microseconds/beat
   unsigned long int uspb = 6e7 / bpm;
@@ -124,7 +165,6 @@ void loop() {
   unsigned long int timed[8];
 
   // prepare phrases
-  char *title[] = {" ~ RHYTHMOID ~", "press to begin", ""};
   char *p1[] = {"I'll show you a",
                 "tempo, then try",
                 "to match it!   "};
@@ -155,49 +195,41 @@ void loop() {
   boolean is_late;
   char result_s[16];
 
-
-  // startup chime and screen
-  print_many("", title);
-  beat(true);
-  beat(false);
-  beat(true);
-  wait_for_press();
-
   print_many(bpm_s, p1);
-  beat(false);
+  make_sound(beep::LO);
   wait_for_press();
 
   print_many(bpm_s, p2);
-  beat(false);
+  make_sound(beep::LO);
   wait_for_press();
 
   print_many(bpm_s, p3);
-  beat(false);
+  make_sound(beep::LO);
   wait_for_press();
 
   last_beat = micros();
   print_one(bpm_s, "");
-  beat(false);
+  make_sound(beep::LO);
   pdelay(uspb, &last_beat);
 
-  do {
+  while (true) {
     print_one(bpm_s, "  Here we go!");
-    beat(false);
+    make_sound(beep::LO);
     pdelay(uspb, &last_beat);
 
     // count off eight beats
     for (int i = 0; i < 6; i++) {
       print_one(bpm_s, count[i]);
-      beat(i % 4 == 0);
+      make_sound(i % 4 == 0 ? beep::HI : beep::LO);
       pdelay(uspb, &last_beat);
     }
 
     print_many(bpm_s, ready);
-    beat(false);
+    make_sound(beep::LO);
     pdelay(uspb, &last_beat);
 
     print_many(bpm_s, go);
-    beat(false);
+    make_sound(beep::LO);
 
     // the user taps enter eight times
     // we measure the clock time of each
@@ -206,14 +238,13 @@ void loop() {
       timed[i] = micros();
 
       print_one(bpm_s, count[i]);
-      beat(i % 4 == 0);
+      make_sound(i % 4 == 0 ? beep::HI : beep::LO);
     }
     last_beat = timed[7];
     pdelay(uspb, &last_beat);
 
     print_one(bpm_s, "     Okay!");
-    beat(false);
-    beat(true);
+    make_sound(beep::RISE);
     pdelay(4 * uspb, &last_beat);
 
     // Take the user's first beat. Project forward to see at what time a
@@ -226,23 +257,125 @@ void loop() {
 
     (String("  ") + String(error / 1e6) + String(is_late ? " late" : " early")).toCharArray(result_s, 16);
     print_one(bpm_s, result_s);
-    beat(false);
-    beat(true);
+    make_sound(beep::RISE);
     pdelay(4 * uspb, &last_beat);
 
     // I'd like to divide this by tpb to give a better statistic #TODO
 
     print_many(bpm_s, p4);
-    beat(false);
+    make_sound(beep::LO);
     pdelay(2 * uspb, &last_beat);
 
     print_many(bpm_s, p5);
-    beat(false);
+    make_sound(beep::LO);
     pdelay(2 * uspb, &last_beat);
 
     print_many(bpm_s, p6);
-    beat(false);
+    make_sound(beep::LO);
     pdelay(3 * uspb, &last_beat);
+  }
+}
 
-  } while (1);
+void entropy() {
+
+  // available bases, in order
+  // end in zero so I don't have to count the number of elements
+  int bases[] = {10, 16, 6, 20, 12, 2, 6, 8, 4, 3, 7, 0};
+
+  // digits correspond to each base
+  char digits[] = "0123456789abcdefghij";
+
+  // to store the current base as a string (String#toCharArray)
+  char base_s[3];
+
+  // print_many display buffer
+  char *message[3] = { "", "Choose a base:", "" };
+
+  // generate string line-by-line
+  char head[16];
+
+  // index and value of current base in list
+  int base_i, base;
+
+  base_i = 0;
+  while (true) {
+    // display the current base
+    base = bases[base_i];
+    String(base).toCharArray(message[2], 3);
+    print_many("Entropy", message);
+
+    if (wait_was_that_a_hold()) { 
+
+      do {
+        // generate random string
+        for (int row = 0; row < 3; row++) {
+          for (int col = 0; col < 15; col++) {
+            message[row][col] = digits[random(0, base + 1)];
+          }
+          message[row][15] = '\0';
+        }
+
+        // display the random string
+        strcpy(head, "Entropy base ");
+        strcat(head, base_s);
+        print_many(head, message);
+        base_i = 0;
+
+      // if you hold, you'll choose a new base.
+      // if you tap, you'll get new random numbers in the same base.
+      } while (!wait_was_that_a_hold());
+    }
+
+    // reset if we run out of bases
+    if (bases[++base_i] == 0) { base_i = 0; }
+  }
+}
+
+void menu() {
+  char *titles[][3] = {{"",
+                        "    8 by 2",
+                        "  rhythm game"},
+
+                       {"",
+                        "Generate random",
+                        "numbers, etc."}};
+
+  void (*funcs[])() = {eight_by_two, entropy};
+
+  // Display start screens to the user. When adding new games, increment num_modes
+  while (true) {
+    for (int i = 0; i < num_modes; i++) {
+      print_many("Choose:", titles[i]);
+      if (wait_was_that_a_hold()) { funcs[i](); i--; }
+      make_sound(beep::RISE);
+    }
+  }
+}
+
+void setup() {
+
+  // seed the random generator
+  Serial.begin(9600);
+  long int seed = 0;
+  for (int i = 0; i < sizeof(long int); i++) {
+    seed &= (analogRead(0) << i);
+  }
+  randomSeed(seed);
+
+  // initialize the button pin as a input
+  pinMode(button_pin, INPUT);
+
+  // initialize the buzzer as an output
+  pinMode(buzzer_pin, OUTPUT);
+  digitalWrite(buzzer_pin, LOW);
+
+  u8g.firstPage();
+  //u8g.setRot180();
+}
+
+void loop() {
+  print_one(" The Appliance ", "    Welcome    ");
+  make_sound(beep::GREET);
+  delay(400);
+  menu();
 }
