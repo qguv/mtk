@@ -116,6 +116,8 @@ void make_sound(beep::tone which) {
       break;
     case beep::FALL:
       make_sound(beep::HI);
+      make_sound(beep::HI);
+      make_sound(beep::LO);
       make_sound(beep::LO);
       break;
     case beep::GREET:
@@ -261,8 +263,7 @@ void entropy() {
   // available bases, in order
   // end in zero so I don't have to count the number of elements
   int bases[] = {10, 16, 6, 20, 12, 2, 6, 8, 4, 3, 7, 0};
-  int base_i = 0;
-  int base;
+  int base_i, base;
   char base_a[12];
 
   // digits correspond to each base
@@ -273,13 +274,14 @@ void entropy() {
   char message[3][16];
   char *message_disp[3];
 
+  make_sound(beep::RISE);
+
   // once you're in the mode, you can't return to the menu unless you reset
   while (true) {
+    base_i = 0;
 
-    // iterate through possible bases until user chooses one by holding
-    do {
-
-      make_sound(beep::LO);
+    // iterate through possible bases
+    while (true) {
 
       // grab the current base and move the index to the next (not selected) base
       base = bases[base_i++];
@@ -299,14 +301,14 @@ void entropy() {
       message_disp[2] = &message[0][0];
       print_many(" Choose a base:", message_disp);
 
-    // iterate through possible bases until user chooses one by holding
-    } while (!wait_was_that_a_hold());
+      // move to next or first base on press until user chooses one by holding
+      if (!wait_was_that_a_hold()) { break; }
+      make_sound(beep::LO);
+    }
 
     // user has chosen a base
     // give random numbers until user asks for another base by holding
     do {
-
-      base_i = 0;
       make_sound(beep::RISE);
 
       for (int row = 0; row < 3; row++) {
@@ -324,6 +326,8 @@ void entropy() {
 
     // touch continues, hold resets to base selection
     } while (!wait_was_that_a_hold());
+
+    make_sound(beep::FALL);
   }
 }
 
