@@ -347,7 +347,7 @@ void menu() {
     for (int i = 0; i < num_modes; i++) {
       print_many("    Choose:", titles[i]);
       if (wait_was_that_a_hold()) { funcs[i](); i--; }
-      make_sound(beep::RISE);
+      make_sound(beep::LO);
     }
   }
 }
