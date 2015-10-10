@@ -177,12 +177,6 @@ void rhythm_game() {
   ptime::microseconds timed[8];
 
   // prepare phrases
-  char *p0[] = {"     One", "", ""};
-  char *p1[] = {"     One",
-                "     more", ""};
-  char *p2[] = {"     One",
-                "     more",
-                "     time?"};
   char *count[] = {"       1",
                    "       2",
                    "       3",
@@ -193,6 +187,7 @@ void rhythm_game() {
                    "       8"};
   char *ready[] = {"", "       7", "     Ready?"};
   char *go[]    = {"", "       8", "      Go!"};
+  char *again[] = {"", "", "    again?"};
 
   // prepare other variables
   ptime::microseconds ideal, error, last_beat;
@@ -201,7 +196,7 @@ void rhythm_game() {
 
   last_beat = micros();
   print_one(bpm_s, "");
-  make_sound(beep::LO);
+  make_sound(beep::RISE);
   pdelay(uspb, &last_beat);
 
   while (true) {
@@ -237,7 +232,6 @@ void rhythm_game() {
 
     print_one(bpm_s, "     Okay!");
     make_sound(beep::RISE);
-    pdelay(4 * uspb, &last_beat);
 
     // Take the user's first beat. Project forward to see at what time a
     // perfect timekeeper would tap the eighth and final beat.
@@ -247,24 +241,28 @@ void rhythm_game() {
     // determine how far off the user was in total.
     error = off_by(ideal, timed[7], &is_late);
 
-    (String("  ") + String(error / 1e6) + String(is_late ? " late" : " early")).toCharArray(result_s, 16);
+    // Prepare results. I'd like to divide this by tpb to give better
+    // statistics #TODO
+    (String("  ") + String(error / 1e3, 0) + String(is_late ? "ms late" : "ms early")).toCharArray(result_s, 16);
+
+    // delay on the beat, but not for too long
+    pdelay((bpm > 100 ? 4 : 2) * uspb, &last_beat);
+
+    // show results
     print_one(bpm_s, result_s);
     make_sound(beep::RISE);
-    pdelay(4 * uspb, &last_beat);
 
-    // I'd like to divide this by tpb to give a better statistic #TODO
+    // delay on the beat, but not for too long
+    pdelay((bpm > 100 ? 4 : 2) * uspb, &last_beat);
 
-    print_many(bpm_s, p0);
-    make_sound(beep::LO);
-    pdelay(2 * uspb, &last_beat);
+    again[1] = result_s;
+    print_many(bpm_s, again);
 
-    print_many(bpm_s, p1);
-    make_sound(beep::LO);
-    pdelay(2 * uspb, &last_beat);
-
-    print_many(bpm_s, p2);
-    make_sound(beep::LO);
-    pdelay(3 * uspb, &last_beat);
+    if (wait_was_that_a_hold()) {
+      make_sound(beep::FALL);
+      return;
+    }
+  last_beat = micros();
   }
 }
 
