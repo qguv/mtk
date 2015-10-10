@@ -257,6 +257,7 @@ void rhythm_game() {
 
     again[1] = result_s;
     print_many(bpm_s, again);
+    make_sound(beep::HI);
 
     if (wait_was_that_a_hold()) {
       make_sound(beep::FALL);
