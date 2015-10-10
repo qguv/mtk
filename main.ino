@@ -395,8 +395,8 @@ void information() {
                         "  Hackerspace",
                         "   Den Haag"},
 
-                       {" Stamkartstraat",
-                        "            117",
+                       {"Stamkartstraat",
+                        "      117",
                         "2521EK Den Haag"}};
 
   make_sound(beep::RISE);
