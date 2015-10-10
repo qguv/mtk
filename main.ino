@@ -270,7 +270,7 @@ void entropy() {
 
   // available bases, in order
   // end in zero so I don't have to count the number of elements
-  int bases[] = {10, 16, 6, 20, 12, 2, 6, 8, 4, 3, 7, 0};
+  int bases[] = {10, 16, 6, 20, 12, 7, 0};
   int base_i, base;
   char base_a[12];
 
@@ -294,24 +294,42 @@ void entropy() {
       // grab the current base and move the index to the next (not selected) base
       base = bases[base_i++];
 
-      // reset if we run out of bases
-      if (base == 0) {
-        base_i = 0;
-        base = bases[base_i++];
-      }
-
-      // display the base to the user
-      (String("    Base ") + String(base)).toCharArray(base_a, 12);
+      // blank out second and last lines and prepare for string entry
       strcpy(message[0], "");
-      strcpy(message[1], base_a);
       message_disp[0] = &message[0][0];
       message_disp[1] = &message[1][0];
       message_disp[2] = &message[0][0];
+
+      // if we're out of bases, show a "back" option
+      if (base == 0) {
+        base_i = 0;
+        strcpy(message[1], "    Go back");
+
+      // otherwise, build a normal screen to show to the user
+      } else {
+        (String("    Base ") + String(base)).toCharArray(base_a, 12);
+        strcpy(message[1], base_a);
+      }
+
       print_many(" Choose a base:", message_disp);
 
       // move to next or first base on press until user chooses one by holding
       if (wait_was_that_a_hold()) { break; }
-      make_sound(beep::LO);
+
+      // indicate that we're going to the next base...
+      if (base != 0) {
+        make_sound(beep::LO);
+
+      // ...or back to the beginning of the base list
+      } else {
+        if (base == 0) { make_sound(beep::HI); }
+      }
+    }
+
+    // if we asked to go back, do so
+    if (base == 0) {
+      make_sound(beep::FALL);
+      return;
     }
 
     // user has chosen a base
