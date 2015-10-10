@@ -271,12 +271,12 @@ void entropy() {
 
   // available bases, in order
   // end in zero so I don't have to count the number of elements
-  int bases[] = {10, 16, 6, 20, 12, 7, 0};
+  int bases[] = {10, 16, 6, 20, 12, 64, 7, 0};
   int base_i, base;
   char base_a[12];
 
   // digits correspond to each base
-  char digits[] = "0123456789abcdefghij";
+  char digits[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/";
 
   // string buffers
   char line[16];
