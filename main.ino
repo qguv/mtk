@@ -2,7 +2,6 @@
 #define min_tempo  60
 #define button_pin  2
 #define buzzer_pin  3
-#define num_modes   3
 #define hold_threshold 300000 // in microseconds
 
 #define array_size(x) (sizeof(x)/sizeof(*x))
@@ -373,11 +372,18 @@ void menu() {
 
   void (*funcs[])() = {rhythm_game, entropy, information};
 
-  // Display start screens to the user. When adding new games, increment num_modes
-  while (true) {
-    for (int i = 0; i < num_modes; i++) {
-      print_many("    Choose:", titles[i]);
-      if (wait_was_that_a_hold()) { funcs[i](); i--; }
+  // Display start screens to the user.
+  int num_modes = array_size(titles);
+  for (int i = 0;; i = (i + 1) % num_modes) {
+    print_many("    Choose:", titles[i]);
+    if (wait_was_that_a_hold()) { funcs[i](); i--; }
+
+    // beep high if we're returning to the first option
+    if (i == num_modes - 1) {
+      make_sound(beep::HI);
+
+    // beep low if we're iterating to the next option
+    } else {
       make_sound(beep::LO);
     }
   }
@@ -414,7 +420,11 @@ void information() {
       make_sound(beep::FALL);
       return;
     }
-    make_sound(beep::LO);
+    if (i == pages - 1) {
+      make_sound(beep::HI);
+    } else {
+      make_sound(beep::LO);
+    }
   }
 }
 

@@ -1,7 +1,14 @@
-# Rhythmoid
-_a very simple rhythm game and shield for the Arduino Nano_
+# mtk
+_mobile/modal tool kit: a collection of useful little Arduino (Nano) programs with a menu_
+
+I was making an Arduino rhythm game when I realized that the biggest memory hog is u8glib. Since this only needs to be imported once, loads of additional code fit fairly easily fit in memory even on the nano/micro/pro micro/etc. So it grew into a bit of an assortment of tools.
 
 <img src="rhythmoid_pcb.png" alt="Rhythmoid PCB" style="width:400px;" />
+
+The project is designed especially to be accessable to blind/deaf users. All menus have visual and audio cues for navigation.
+
+Blind users: Beeps of different tones can help you navigate the menus and play the game.
+See the section below entited "For blind users and developers" to learn how to nagivate the menus through sound cues alone.
 
 ## Parts
 
@@ -27,16 +34,59 @@ Look at [the included Eagle files](eagle/). Here's a short explanation:
 
 Pictured above; will add pictures of the finished product once I'm through building one. If you like the board as it is, you can [order it from OSH Park](https://oshpark.com/shared_projects/O3bcMjo5) without having to bother with EAGLE. I haven't tested it yet; I've only just ordered it myself! I don't get any money from your order; OSH Park is a simple group ordering service, and my design is open anyway.
 
-## Gameplay
+# For blind users and developers
 
-Press the button to get through the initial menus. A tempo will be chosen pseudo-randomly between 60 (clock) and 180 (hardstyle). The board will count eight beats at that tempo. You then tap out the next eight at the same tempo. It will tell you how much, in seconds, you drifted from the original tempo. More sophisticated statistics coming soon; I'd like a score that allows fairly equal comparison between performance at different tempos.
+Here is extremely detailed information on menu sound cues and other technicalities.
+
+## The main menu
+
+After displaying information on time/date of compilation, the main menu will appear, allowing you to select one of many different operating modes. Tap the button to iterate through the menu. Each tap produces a "low" beep. A "high" beep is produced after you cycle past the last menu item, returning you to the first menu item. The items, in order, are:
+
+  - Play a rhythm game
+  - Collect entropy
+  - View info
+
+When you return to the main menu, you are placed at the title of the menu you just left. When you return from "view info", for instance, the main menu will display "view info", meaning you would tap once to "play a rhythm game" and twice to "collect entropy".
+
+## Rhythm game gameplay
+
+A tempo will be chosen pseudo-randomly between 60 (like a clock) and 180 (like Dutch hardstyle). The board will count eight beats at that tempo. The beeps are like a metronome: beats "1" and "5" are high, all the others are low. High low low low high low low low. You then tap out the next eight beats at the same tempo. The screen then indicates how far, in milliseconds, you ended up drifting from the tempo. It will then beep high, indicating that you can choose between either playing again at the same tempo (tap the button) or returning to the main menu (hold the button).
+
+I'd like to expand this so that statistics are somehow given through audio. I'd also like to provide more sophisticated analysis than just 8th-beat drift.
 
 Some specifics:
 
-  - beats 1 and 4 of the eight-beat segments are accompanied by a high buzzer chirp; other beats have a low chirp
   - you can pause between the machine's 8 beats and your 8 beats--it won't count against you
   - the only thing that's (currently) measured is the first and last beats; you can rush through beats 2 through 7 and it won't count against you as long as you end up pressing beat 8 at the right time
-  - the game repeats at the same tempo; use the board's reset button/pin or cycle power to get a new tempo
-  - the calls to wait are very precise, on the order of 4μs or so (depending on the board) and account for screen-blit time, sound playback time, pin read/write time, etc.
-  - the arduino IDE is terrible and doesn't support sophisticated macros or typedefs, so types are uglier than I'd like them to be to keep the project accessible to folks not using `ino` to flash their boards
-  - the biggest memory hog is u8glib, which only needs to be imported once, so loads of additional code (other rhythm games) would easily fit in memory, even on the nano/micro/pro micro/etc.
+  - the game always repeats at the same tempo until you return to the menu
+  - the score is accurate to 4μs
+  - the calls to `delay()` are specially designed to be very precise, on the order of 4μs or so (depending on the board), and account for screen-blit time, sound playback time, pin read/write time, calculation time, etc.
+
+## Using the entropy generator
+
+You can choose a base in the same way that you choose main menu items: tap to iterate and hold to select. The last item gives a higher beep than the others, indicating that you're moving to the first element again.
+
+The bases, in order, are: 10, 16, 6, 20, 12, 64, 7. After 7 comes an option to "go back"; when the button is held here, you can return to the main menu.
+
+Once you've held the button to select a base, the screen displays the base you chose and fills the rest of the screen with random digits in that base. Tap to generate a new screen of entropy; hold to return to the base selection screen. Note: the base selection screen always starts at 10 and does _not_ return you to your last choice, like the main menu.
+
+The random number generator is _farily okay_. If you can ensure that analog pin zero isn't connected to any other components (PCBs notwithstanding), than the generation is the best possible without serious external hardware (a geiger counter). It uses the least significant bits of analogue reads to generate a `long int` to seed the Arduino random generation function.
+
+  - tap to iterate through bases, hold to select and generate a screen's worth of entropy
+  - you can generate another screen by simply tapping, or hold to return to base selection
+  - select "Go back" after the last base to return to the main menu
+
+## Information mode
+
+Tap to switch screens; hold to return to the main menu. Low beep when cycling through; high beep when returning to the first element. The following information is displayed on screen at each press:
+
+  - Made by: Quint Guvernator
+  - Made at: revspace.nl Hackerspace Den Haag
+  - Return to: Stamkartstraat 117 2521EK Den Haag
+
+## Development todo
+
+  - unify all menu code so it's easier to program menus with consistent operation and sound cues
+  - more sophisticated statistics in the rhythm game
+  - a more sophisticated rhythm game
+  - more modes!
