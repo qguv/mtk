@@ -2,8 +2,10 @@
 #define min_tempo  60
 #define button_pin  2
 #define buzzer_pin  3
-#define num_modes   2
+#define num_modes   3
 #define hold_threshold 300000 // in microseconds
+
+#define array_size(x) (sizeof(x)/sizeof(*x))
 
 // Display: http://www.hobbyelectronica.nl/product/128x64-oled-geel-blauw-i2c/
 // OLED pins: SDA -> A4, SCL -> A5
@@ -11,22 +13,28 @@
 U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_NO_ACK);
 
 namespace beep {
-  typedef enum tone { LO, HI, RISE, FALL, GREET, ERR } tone;
+  typedef enum tone { LO, HI, RISE, FALL, CHIME, ERR } tone;
 }
 
-unsigned long int off_by(unsigned long int, unsigned long int, boolean *);
-void pdelay(unsigned long int, unsigned long int *);
+namespace ptime {
+  typedef unsigned long int microseconds;
+  typedef unsigned int      milliseconds;
+}
+
+ptime::microseconds off_by(ptime::microseconds, ptime::microseconds, boolean *);
+void pdelay(ptime::microseconds, ptime::microseconds *);
 void wait_for_press();
 boolean wait_was_that_a_hold();
 void raw_beep(int, int);
 void make_sound(beep::tone);
 void print_many(const char *, char *[3]);
 void print_one(const char *, const char *);
-void straight_eight();
+void rhythm_game();
 void entropy();
+void information();
 void menu();
 
-unsigned long int off_by(unsigned long int ideal, unsigned long int observed, boolean *is_late) {
+ptime::microseconds off_by(ptime::microseconds ideal, ptime::microseconds observed, boolean *is_late) {
   if (observed > ideal) {
     *is_late = true;
     return observed - ideal;
@@ -39,11 +47,13 @@ unsigned long int off_by(unsigned long int ideal, unsigned long int observed, bo
 /* A more precise delay than Arduino's own with the penalty of quicker overflow
  * (70 minutes). Pass in the time before a screen blit to "begin" for a more
  * accurate time. */
-void pdelay(unsigned long int total, unsigned long int *last) {
+void pdelay(ptime::microseconds total, ptime::microseconds *last) {
 
   // figure out how much time we've already spent "waiting" from printing to the screen, etc
   total -= micros() - *last;
 
+  // types are different than usual milli-/microseconds because of the
+  // differing precision of each type of delay
   delay((unsigned long int) total / 1000);
   delayMicroseconds((unsigned int) total % 1000);
   *last = micros();
@@ -73,7 +83,7 @@ void wait_for_press() {
 boolean wait_was_that_a_hold() {
 
   wait_for_press();
-  unsigned long int start = micros();
+  ptime::microseconds start = micros();
   unsigned int button_state;
 
   // wait for button release or hold-sensing timeout
@@ -120,7 +130,7 @@ void make_sound(beep::tone which) {
       make_sound(beep::LO);
       make_sound(beep::LO);
       break;
-    case beep::GREET:
+    case beep::CHIME:
       make_sound(beep::HI);
       make_sound(beep::LO);
       make_sound(beep::HI);
@@ -153,7 +163,7 @@ void print_one(const char *bpm, const char *body) {
   print_many(bpm, body_wrap);
 }
 
-void eight_by_two() {
+void rhythm_game() {
 
   // Far more straightforward on the Arduino than in standard C!
   int bpm = random(min_tempo, max_tempo + 1);
@@ -161,10 +171,10 @@ void eight_by_two() {
   (String("TEMPO ") + String(bpm)).toCharArray(bpm_s, 16);
   
   // then convert to microseconds/beat
-  unsigned long int uspb = 6e7 / bpm;
+  ptime::microseconds uspb = 6e7 / bpm;
 
   // prepare an array to store time measurements
-  unsigned long int timed[8];
+  ptime::microseconds timed[8];
 
   // prepare phrases
   char *p0[] = {"     One", "", ""};
@@ -185,7 +195,7 @@ void eight_by_two() {
   char *go[]    = {"", "       8", "      Go!"};
 
   // prepare other variables
-  unsigned long int ideal, error, last_beat;
+  ptime::microseconds ideal, error, last_beat;
   boolean is_late;
   char result_s[16];
 
@@ -338,9 +348,13 @@ void menu() {
 
                        {"",
                         "    Collect",
-                        "    entropy"}};
+                        "    entropy"},
 
-  void (*funcs[])() = {eight_by_two, entropy};
+                       {"",
+                        "     View",
+                        "     info"}};
+
+  void (*funcs[])() = {rhythm_game, entropy, information};
 
   // Display start screens to the user. When adding new games, increment num_modes
   while (true) {
@@ -349,6 +363,41 @@ void menu() {
       if (wait_was_that_a_hold()) { funcs[i](); i--; }
       make_sound(beep::LO);
     }
+  }
+}
+
+void information() {
+  char *titles[] =     {"   Made by:",
+                        "   Made at:",
+                        "  Return to:"};
+
+  char *bodies[][3] = {{"",
+                        "     Quint",
+                        "   Guvernator"},
+
+                       {"  revspace.nl",
+                        "  Hackerspace",
+                        "   Den Haag"},
+
+                       {" Stamkartstraat",
+                        "            117",
+                        "2521EK Den Haag"}};
+
+  make_sound(beep::RISE);
+
+  // cycle through info pages on press, exit on hold
+  int pages = array_size(titles);
+  for (int i = 0;; i = (i + 1) % pages) {
+
+    // show current page
+    print_many(titles[i], bodies[i]);
+
+    // next page on press, exit on hold
+    if (wait_was_that_a_hold()) {
+      make_sound(beep::FALL);
+      return;
+    }
+    make_sound(beep::LO);
   }
 }
 
@@ -383,7 +432,7 @@ void setup() {
 void loop() {
   char *greeting[3] = {"  Compiled on", "  " __DATE__, "  at " __TIME__};
   print_many("    Welcome", greeting);
-  make_sound(beep::GREET);
+  make_sound(beep::CHIME);
   delay(400);
   menu();
 }
