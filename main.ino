@@ -394,9 +394,9 @@ void information() {
                         "   Made at:",
                         "  Return to:"};
 
-  char *bodies[][3] = {{"",
-                        "     Quint",
-                        "   Guvernator"},
+  char *bodies[][3] = {{"     Quint",
+                        "   Guvernator",
+                        "github qguv/mtk"},
 
                        {"  revspace.nl",
                         "  Hackerspace",
@@ -458,7 +458,7 @@ void setup() {
 
 void loop() {
   char *greeting[3] = {"  Compiled on", "  " __DATE__, "  at " __TIME__};
-  print_many("    Welcome", greeting);
+  print_many(" ~    mtk    ~", greeting);
   make_sound(beep::CHIME);
   delay(400);
   menu();

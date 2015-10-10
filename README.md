@@ -80,8 +80,8 @@ The random number generator is _farily okay_. If you can ensure that analog pin 
 
 Tap to switch screens; hold to return to the main menu. Low beep when cycling through; high beep when returning to the first element. The following information is displayed on screen at each press:
 
-  - Made by: Quint Guvernator
-  - Made at: revspace.nl Hackerspace Den Haag
+  - Made by: Quint Guvernator [github qguv/mtk](https://github.com/qguv/mtk)
+  - Made at: [revspace.nl](http://revspace.nl) Hackerspace Den Haag
   - Return to: Stamkartstraat 117 2521EK Den Haag
 
 ## Development todo
