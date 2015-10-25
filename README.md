@@ -45,8 +45,9 @@ After displaying information on time/date of compilation, the main menu will app
   - Play a rhythm game
   - Collect entropy
   - View info
+  - Toggle sound
 
-When you return to the main menu, you are placed at the title of the menu you just left. When you return from "view info", for instance, the main menu will display "view info", meaning you would tap once to "play a rhythm game" and twice to "collect entropy".
+When you return to the main menu, you are placed at the title of the menu you just left. When you return from "view info", for instance, the main menu will display "view info", meaning you would tap once to select "toggle sound", twice to select "play a rhythm game", and three times to select "collect entropy".
 
 ## Rhythm game gameplay
 
@@ -83,6 +84,18 @@ Tap to switch screens; hold to return to the main menu. Low beep when cycling th
   - Made by: Quint Guvernator [github qguv/mtk](https://github.com/qguv/mtk)
   - Made at: [revspace.nl](http://revspace.nl) Hackerspace Den Haag
   - Return to: Stamkartstraat 117 2521EK Den Haag
+
+## Turning sound on/off
+
+Activating the fourth menu option enables or disables sound. The start-up chime will always be on. When sound is being enabled, a longer-than-normal rising chime plays. When sound is being disabled, a longer-than-normal falling chime plays.
+
+If sound is disabled, you can re-enable it by doing the following:
+
+  - Turn the device on
+  - Tap the button three times
+  - Hold the button
+
+If this was successful, you will hear the longer-than-normal rising chime.
 
 ## Development todo
 

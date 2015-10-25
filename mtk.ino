@@ -144,7 +144,10 @@ void make_sound(beep::tone which) {
       make_sound(beep::FALL);
       break;
     case beep::ENABLE:
-      make_sound(beep::RISE);
+      make_sound(beep::LO);
+      make_sound(beep::LO);
+      make_sound(beep::HI);
+      make_sound(beep::HI);
       delay(100);
       make_sound(beep::HI);
       make_sound(beep::HI);
@@ -152,7 +155,10 @@ void make_sound(beep::tone which) {
       make_sound(beep::HI);
       break;
     case beep::DISABLE:
-      make_sound(beep::FALL);
+      make_sound(beep::HI);
+      make_sound(beep::HI);
+      make_sound(beep::LO);
+      make_sound(beep::LO);
       delay(100);
       make_sound(beep::LO);
       make_sound(beep::LO);
