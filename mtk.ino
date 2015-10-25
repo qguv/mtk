@@ -3,16 +3,19 @@
 #define button_pin  2
 #define buzzer_pin  3
 #define hold_threshold 300000 // in microseconds
-
 #define array_size(x) (sizeof(x)/sizeof(*x))
+
+#include <EEPROM.h>
 
 // Display: http://www.hobbyelectronica.nl/product/128x64-oled-geel-blauw-i2c/
 // OLED pins: SDA -> A4, SCL -> A5
 #include "U8glib.h"
 U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_NO_ACK);
 
+bool speaker_enabled = true;
+
 namespace beep {
-  typedef enum tone { LO, HI, RISE, FALL, CHIME, ERR } tone;
+  typedef enum tone { LO, HI, RISE, FALL, CHIME, ERR, ENABLE, DISABLE } tone;
 }
 
 namespace ptime {
@@ -32,6 +35,7 @@ void rhythm_game();
 void entropy();
 void information();
 void menu();
+void toggle_speaker();
 
 ptime::microseconds off_by(ptime::microseconds ideal, ptime::microseconds observed, boolean *is_late) {
   if (observed > ideal) {
@@ -103,6 +107,7 @@ boolean wait_was_that_a_hold() {
 
 // Add to a digital out, remember to pinMode(buzzer_pin, OUTPUT).
 void raw_beep(int cycles, int delay_time) {
+  if (!speaker_enabled) { return; }
   for (int i = 0; i < cycles; i++) {
     digitalWrite(buzzer_pin, HIGH);
     delayMicroseconds(delay_time);
@@ -138,7 +143,31 @@ void make_sound(beep::tone which) {
       make_sound(beep::FALL);
       make_sound(beep::FALL);
       break;
+    case beep::ENABLE:
+      make_sound(beep::RISE);
+      delay(100);
+      make_sound(beep::HI);
+      make_sound(beep::HI);
+      make_sound(beep::HI);
+      make_sound(beep::HI);
+      break;
+    case beep::DISABLE:
+      make_sound(beep::FALL);
+      delay(100);
+      make_sound(beep::LO);
+      make_sound(beep::LO);
+      make_sound(beep::LO);
+      make_sound(beep::LO);
+      break;
   }
+}
+
+// Make a sound even if user has disabled sound output
+void force_make_sound(beep::tone which) {
+  bool previous_state = speaker_enabled;
+  speaker_enabled = true;
+  make_sound(which);
+  speaker_enabled = previous_state;
 }
 
 // The body string array must be three lines.
@@ -368,23 +397,39 @@ void menu() {
 
                        {"",
                         "     View",
-                        "     info"}};
+                        "     info"},
 
-  void (*funcs[])() = {rhythm_game, entropy, information};
+                       {"",
+                        "    Toggle",
+                        "     sound"}};
+
+  void (*funcs[])() = {rhythm_game, entropy, information, toggle_speaker};
 
   // Display start screens to the user.
   int num_modes = array_size(titles);
   for (int i = 0;; i = (i + 1) % num_modes) {
     print_many("    Choose:", titles[i]);
-    if (wait_was_that_a_hold()) { funcs[i](); i--; }
 
-    // beep high if we're returning to the first option
-    if (i == num_modes - 1) {
-      make_sound(beep::HI);
+    // if the user holds the button,
+    if (wait_was_that_a_hold()) {
 
-    // beep low if we're iterating to the next option
+      // execute the chosen menu option
+      funcs[i]();
+
+      // when we come back, return to the menu option we were just on
+      i--;
+
+    // if the user taps the button, go to the next option
     } else {
-      make_sound(beep::LO);
+
+      // beep high if we're returning to the first option
+      if (i == num_modes - 1) {
+        make_sound(beep::HI);
+
+      // beep low if we're iterating to the next option
+      } else {
+        make_sound(beep::LO);
+      }
     }
   }
 }
@@ -428,7 +473,14 @@ void information() {
   }
 }
 
+void toggle_speaker() {
+  speaker_enabled = !speaker_enabled;
+  EEPROM.write(0, speaker_enabled ? 1 : 0);
+  force_make_sound(speaker_enabled ? beep::ENABLE : beep::DISABLE);
+}
+
 void setup() {
+  speaker_enabled = !(EEPROM.read(0) == 0);
 
   // seed the random generator
   Serial.begin(9600);
@@ -459,7 +511,7 @@ void setup() {
 void loop() {
   char *greeting[3] = {"  Compiled on", "  " __DATE__, "  at " __TIME__};
   print_many(" ~    mtk    ~", greeting);
-  make_sound(beep::CHIME);
+  force_make_sound(beep::CHIME);
   delay(400);
   menu();
 }
