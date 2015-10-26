@@ -217,7 +217,6 @@ void rhythm_game() {
 
   last_beat = micros();
   print_one(bpm_s, "");
-  make_sound(beep::RISE);
   pdelay(uspb, &last_beat);
 
   while (true) {
