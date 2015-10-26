@@ -127,11 +127,13 @@ void make_sound(beep::tone which) {
       break;
     case beep::ERR:
       make_sound(beep::FALL);
-      make_sound(beep::FALL);
+      delay(100);
+      make_sound(beep::LO);
+      make_sound(beep::LO);
+      make_sound(beep::LO);
+      make_sound(beep::LO);
       break;
     case beep::ENABLE:
-      make_sound(beep::LO);
-      make_sound(beep::LO);
       make_sound(beep::HI);
       make_sound(beep::HI);
       delay(100);
@@ -141,8 +143,6 @@ void make_sound(beep::tone which) {
       make_sound(beep::HI);
       break;
     case beep::DISABLE:
-      make_sound(beep::HI);
-      make_sound(beep::HI);
       make_sound(beep::LO);
       make_sound(beep::LO);
       delay(100);
@@ -266,23 +266,20 @@ void rhythm_game() {
     (String("  ") + String(error / 1e3, 0) + String(is_late ? "ms late" : "ms early")).toCharArray(result_s, 16);
 
     // delay on the beat, but not for too long
-    pdelay((bpm > 100 ? 4 : 2) * uspb, &last_beat);
+    pdelay((bpm > 130 ? 4 : 2) * uspb, &last_beat);
 
     // show results
     print_one(bpm_s, result_s);
     make_sound(beep::RISE);
 
     // delay on the beat, but not for too long
-    pdelay((bpm > 100 ? 4 : 2) * uspb, &last_beat);
+    pdelay((bpm > 130 ? 4 : 2) * uspb, &last_beat);
 
     again[1] = result_s;
     print_many(bpm_s, again);
     make_sound(beep::HI);
 
-    if (wait_was_that_a_hold()) {
-      make_sound(beep::FALL);
-      return;
-    }
+    if (wait_was_that_a_hold()) { return; }
   last_beat = micros();
   }
 }
