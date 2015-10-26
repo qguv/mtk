@@ -2,14 +2,14 @@
 #define min_tempo  60
 #define button_pin  2
 #define buzzer_pin  3
-#define hold_threshold 300 // in milliseconds
-#define tap_timeout   1000 // in milliseconds
+#define hold_threshold 300 // milliseconds
+#define tap_timeout   1000 // milliseconds
 #define array_size(x) (sizeof(x)/sizeof(*x))
 
 #include <EEPROM.h>
 
-// Display: http://www.hobbyelectronica.nl/product/128x64-oled-geel-blauw-i2c/
-// OLED pins: SDA -> A4, SCL -> A5
+/* Display: http://www.hobbyelectronica.nl/product/128x64-oled-geel-blauw-i2c/
+ * OLED pins: SDA -> A4, SCL -> A5 */
 #include "U8glib.h"
 U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_NO_ACK);
 
@@ -28,21 +28,7 @@ namespace button {
   typedef enum press { TAP, HOLD, TIMEOUT } press;
 }
 
-ptime::microseconds off_by(ptime::microseconds, ptime::microseconds, boolean *);
-void pdelay(ptime::microseconds, ptime::microseconds *);
-button::press wait_for_press(ptime::milliseconds);
-button::press wait_for_hold(ptime::milliseconds);
-void raw_beep(int, int);
-void make_sound(beep::tone);
-void print_many(const char *, char *[3]);
-void print_one(const char *, const char *);
-void rhythm_game();
-void measure_tempo();
-void entropy();
-void information();
-void menu();
-void toggle_speaker();
-
+// How much do two microsecond-times differ, and in what direction?
 ptime::microseconds off_by(ptime::microseconds ideal, ptime::microseconds observed, boolean *is_late) {
   if (observed > ideal) {
     *is_late = true;
@@ -68,7 +54,9 @@ void pdelay(ptime::microseconds total, ptime::microseconds *last) {
   *last = micros();
 }
 
-/* Attach a 10K resistor from ground to a pushbutton and pin 2. Connect the
+/* Block until either the button is pressed or a certain amount of time (in
+ * milliseconds) has passed. Pass zero as the timeout to wait indefinitely.
+ * Attach a 10K resistor from ground to a pushbutton and pin 2. Connect the
  * other side of the button to 5V. pinMode(button_pin, INPUT); */
 button::press wait_for_press(ptime::milliseconds timeout_length) {
 
@@ -90,7 +78,10 @@ button::press wait_for_press(ptime::milliseconds timeout_length) {
   return button::TAP;
 }
 
-// pauses execution until the button is pressed and released. returns how long the button was depressed.
+/* Pause execution until the button is pressed and released. Measures length of
+ * press and classifies as a tap or a hold based on the hold_threshold
+ * constant. Can take a timeout like wait_for_press, or pass zero to wait
+ * indefinitely. */
 button::press wait_for_hold(ptime::milliseconds timeout_length) {
 
   // wait for a button press or time out here
@@ -182,7 +173,8 @@ void force_make_sound(beep::tone which) {
   speaker_enabled = previous_state;
 }
 
-// The body string array must be three lines.
+/* Print one screen. Pass in a header to be displayed in yellow and an array of
+ * three up-to-fifteen-character strings to be displayed in blue. */
 void print_many(const char *head, char *body[3]) {
   u8g.firstPage();
   do {
@@ -198,6 +190,7 @@ void print_many(const char *head, char *body[3]) {
   } while (u8g.nextPage());
 }
 
+// Print a header in yellow and one up-to-fifteen-character string in blue.
 void print_one(const char *bpm, const char *body) {
   char *body_wrap[] = {"", (char *) body, ""};
   print_many(bpm, body_wrap);
@@ -205,10 +198,10 @@ void print_one(const char *bpm, const char *body) {
 
 void rhythm_game() {
 
-  // Far more straightforward on the Arduino than in standard C!
+  // pick a tempo
   int bpm = random(min_tempo, max_tempo + 1);
   char bpm_s[16];
-  (String("TEMPO ") + String(bpm)).toCharArray(bpm_s, 16);
+  (String("Tempo: ") + String(bpm) + String(" bpm")).toCharArray(bpm_s, 16);
   
   // then convert to microseconds/beat
   ptime::microseconds uspb = 6e7 / bpm;
@@ -272,16 +265,15 @@ void rhythm_game() {
     print_one(bpm_s, "     Okay!");
     make_sound(beep::RISE);
 
-    // Take the user's first beat. Project forward to see at what time a
-    // perfect timekeeper would tap the eighth and final beat.
+    /* Take the user's first beat. Project forward to see at what time a
+     * perfect timekeeper would tap the eighth and final beat. */
     ideal = timed[0] + (uspb * 7);
 
-    // We then compare the user's final beat and the ideal final beat to
-    // determine how far off the user was in total.
+    /* We then compare the user's final beat and the ideal final beat to
+     * determine how far off the user was in total. */
     error = off_by(ideal, timed[7], &is_late);
 
-    // Prepare results. I'd like to divide this by tpb to give better
-    // statistics #TODO
+    // prepare results
     (String("  ") + String(error / 1e3, 0) + String(is_late ? "ms late" : "ms early")).toCharArray(result_s, 16);
 
     // delay on the beat, but not for too long
@@ -294,15 +286,18 @@ void rhythm_game() {
     // delay on the beat, but not for too long
     pdelay((bpm > 130 ? 4 : 2) * uspb, &last_beat);
 
+    // give the option to start again (tap) or return to the menu (hold)
     again[1] = result_s;
     print_many(bpm_s, again);
     make_sound(beep::HI);
-
     if (wait_for_hold(0) == button::HOLD) { return; }
-  last_beat = micros();
+
+    // prepare timing information for next run
+    last_beat = micros();
   }
 }
 
+// Given a list of approximate beat durations, calculate the average bpm.
 float bpm_guess(ptime::microseconds tpb[4], int current_beat) {
   ptime::microseconds the_sum = 0;
   int n = (current_beat >= 4) ? 4 : current_beat;
@@ -348,8 +343,7 @@ void measure_tempo() {
 
 void entropy() {
 
-  // available bases, in order
-  // end in zero so I don't have to count the number of elements
+  // available bases, in order; zero returns to main menu
   int bases[] = {10, 16, 6, 20, 12, 64, 7, 0};
   int base_i, base;
   char base_a[12];
@@ -407,11 +401,11 @@ void entropy() {
     // if we asked to go back, do so
     if (base == 0) { return; }
 
-    // user has chosen a base
-    // give random numbers until user asks for another base by holding
+    // user has chosen a base; give entropy until hold
     do {
       make_sound(beep::RISE);
 
+      // prepare a screen full of digits of the chosen base
       for (int row = 0; row < 3; row++) {
         for (int col = 0; col < 15; col++) {
           line[col] = digits[random(0, base)];
@@ -419,15 +413,17 @@ void entropy() {
         line[15] = '\0';
         strcpy(message[row], line);
       }
-      // print random digits in chosen base
+
+      // blit to screen
       message_disp[0] = &message[0][0];
       message_disp[1] = &message[1][0];
       message_disp[2] = &message[2][0];
       print_many(&base_a[0], message_disp);
 
-    // tap continues, hold resets to base selection
+    // tap to continue; hold to return to base selection
     } while (wait_for_hold(0) == button::TAP);
 
+    // returning to base selection
     make_sound(beep::FALL);
   }
 }
@@ -464,7 +460,7 @@ void menu() {
     // if the user holds the button,
     if (wait_for_hold(0) == button::HOLD) {
 
-      // if use picked the last one, don't make beeps
+      // if user chose "toggle sound", don't make noise
       chose_toggle_speaker = (i == (num_modes - 1));
 
       // otherwise make start and finish beeps
@@ -473,7 +469,7 @@ void menu() {
       // execute the chosen menu option, and set up to return to the same menu item
       funcs[i--]();
 
-      // beep once task finished unless it's been disabled
+      // beep once task finished (unless the task was to toggle sound)
       if (!chose_toggle_speaker) { make_sound(beep::FALL); }
 
     // if the user taps the button, go to the next option
@@ -494,7 +490,8 @@ void menu() {
 void information() {
   char *titles[] =     {"   Made by:",
                         "   Made at:",
-                        "  Return to:"};
+                        "  Return to:",
+                        " Compiled on:"};
 
   char *bodies[][3] = {{"     Quint",
                         "   Guvernator",
@@ -506,7 +503,11 @@ void information() {
 
                        {"Stamkartstraat",
                         "      117",
-                        "2521EK Den Haag"}};
+                        "2521EK Den Haag"},
+
+                       {"  " __DATE__,
+                        "  at " __TIME__,
+                        " for ATmega328"}};
 
   // cycle through info pages on press, exit on hold
   int pages = array_size(titles);
@@ -537,8 +538,8 @@ void setup() {
   // seed the random generator
   long int seed = 0;
 
-  // we'll make a random seed by sampling bits of noise until we've filled a
-  // long int, the type used to seed arduino's random() function
+  /* we'll make a random seed by sampling bits of noise until we've filled a
+   * long int, the type used to seed arduino's random() function */
   for (int i = 0; i < (sizeof(long int) * 8); i++) {
 
     // sample some analog noise
@@ -559,8 +560,7 @@ void setup() {
 }
 
 void loop() {
-  char *greeting[3] = {"  Compiled on", "  " __DATE__, "  at " __TIME__};
-  print_many("      MTK     ", greeting);
+  print_one("      MTK     ", "   Welcome!");
   force_make_sound(beep::CHIME);
   delay(350);
   menu();
