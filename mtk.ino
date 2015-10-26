@@ -24,10 +24,14 @@ namespace ptime {
   typedef unsigned long int milliseconds; // currently unused
 }
 
+namespace button {
+  typedef enum press { TAP, HOLD, TIMEOUT } press;
+}
+
 ptime::microseconds off_by(ptime::microseconds, ptime::microseconds, boolean *);
 void pdelay(ptime::microseconds, ptime::microseconds *);
-boolean wait_for_press(ptime::milliseconds);
-boolean wait_was_that_a_hold();
+button::press wait_for_press(ptime::milliseconds);
+button::press wait_for_hold(ptime::milliseconds);
 void raw_beep(int, int);
 void make_sound(beep::tone);
 void print_many(const char *, char *[3]);
@@ -66,42 +70,45 @@ void pdelay(ptime::microseconds total, ptime::microseconds *last) {
 
 /* Attach a 10K resistor from ground to a pushbutton and pin 2. Connect the
  * other side of the button to 5V. pinMode(button_pin, INPUT); */
-boolean wait_for_press(ptime::milliseconds timeout_length) {
+button::press wait_for_press(ptime::milliseconds timeout_length) {
 
   boolean time_limited = (timeout_length > 0);
   ptime::milliseconds timeout = millis() + ((ptime::milliseconds) timeout_length);
 
   // you've got to release the button every time
   while (digitalRead(button_pin) != LOW) {
-    if (time_limited && (millis() >= timeout)) { return false; }
+    if (time_limited && (millis() >= timeout)) { return button::TIMEOUT; }
     delay(5);
   }
 
   // wait until the button is pressed
   while (digitalRead(button_pin) != HIGH) {
-    if (time_limited && (millis() >= timeout)) { return false; }
+    if (time_limited && (millis() >= timeout)) { return button::TIMEOUT; }
     delay(5);
   }
 
-  return true;
+  return button::TAP;
 }
 
 // pauses execution until the button is pressed and released. returns how long the button was depressed.
-boolean wait_was_that_a_hold() {
+button::press wait_for_hold(ptime::milliseconds timeout_length) {
 
-  wait_for_press(0);
+  // wait for a button press or time out here
+  if (wait_for_press(0) == button::TIMEOUT) { return button::TIMEOUT; }
+
+  // if button's been pressed, start counting how long it's been held
   ptime::microseconds threshold_time = millis() + hold_threshold;
 
-  // wait for button release or hold-sensing timeout
+  // wait for button release (indicates tap) or hold-sensing timeout (indicates hold)
   while (digitalRead(button_pin) == HIGH) {
 
     // was the threshold reached?
-    if (millis() >= threshold_time) { return true; }
+    if (millis() >= threshold_time) { return button::HOLD; }
     delay(5);
   }
 
   // ... or did we lift the button up before that?
-  return false;
+  return button::TAP;
 }
 
 // Add to a digital out, remember to pinMode(buzzer_pin, OUTPUT).
@@ -291,7 +298,7 @@ void rhythm_game() {
     print_many(bpm_s, again);
     make_sound(beep::HI);
 
-    if (wait_was_that_a_hold()) { return; }
+    if (wait_for_hold(0) == button::HOLD) { return; }
   last_beat = micros();
   }
 }
@@ -314,7 +321,7 @@ void measure_tempo() {
   print_one(h, "    Begin!");
 
   // get first beat; quit on hold as always
-  if (wait_was_that_a_hold()) { return; }
+  if (wait_for_hold(0) == button::HOLD) { return; }
 
   do {
     current = micros();
@@ -326,7 +333,7 @@ void measure_tempo() {
     beat++;
 
     // wait a while for a keypress
-    if (!wait_for_press(tap_timeout)) {
+    if (wait_for_press(tap_timeout) == button::TIMEOUT) {
 
       // if we didn't get any after some time, display the option to return to the home screen
       make_sound(beep::HI);
@@ -334,7 +341,7 @@ void measure_tempo() {
       print_many(h, m);
 
       // hold returns to the main menu; tap keeps bpm-counting (for very low bpm, e.g. crew)
-      if (wait_was_that_a_hold()) { return; }
+      if (wait_for_hold(0) == button::HOLD) { return; }
     }
   } while (true);
 }
@@ -385,7 +392,7 @@ void entropy() {
       print_many(" Choose a base:", message_disp);
 
       // move to next or first base on press until user chooses one by holding
-      if (wait_was_that_a_hold()) { break; }
+      if (wait_for_hold(0) == button::HOLD) { break; }
 
       // indicate that we're going to the next base...
       if (base != 0) {
@@ -418,8 +425,8 @@ void entropy() {
       message_disp[2] = &message[2][0];
       print_many(&base_a[0], message_disp);
 
-    // touch continues, hold resets to base selection
-    } while (!wait_was_that_a_hold());
+    // tap continues, hold resets to base selection
+    } while (wait_for_hold(0) == button::TAP);
 
     make_sound(beep::FALL);
   }
@@ -455,7 +462,7 @@ void menu() {
     print_many("    Choose:", titles[i]);
 
     // if the user holds the button,
-    if (wait_was_that_a_hold()) {
+    if (wait_for_hold(0) == button::HOLD) {
 
       // if use picked the last one, don't make beeps
       chose_toggle_speaker = (i == (num_modes - 1));
@@ -509,7 +516,7 @@ void information() {
     print_many(titles[i], bodies[i]);
 
     // next page on press, exit on hold
-    if (wait_was_that_a_hold()) { return; }
+    if (wait_for_hold(0) == button::HOLD) { return; }
     if (i == pages - 1) {
       make_sound(beep::HI);
     } else {
