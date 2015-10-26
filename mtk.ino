@@ -2,7 +2,8 @@
 #define min_tempo  60
 #define button_pin  2
 #define buzzer_pin  3
-#define hold_threshold 300000 // in microseconds
+#define hold_threshold 300 // in milliseconds
+#define tap_timeout   1000 // in milliseconds
 #define array_size(x) (sizeof(x)/sizeof(*x))
 
 #include <EEPROM.h>
@@ -12,7 +13,7 @@
 #include "U8glib.h"
 U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_NO_ACK);
 
-bool speaker_enabled = true;
+boolean speaker_enabled = true;
 
 namespace beep {
   typedef enum tone { LO, HI, RISE, FALL, CHIME, ERR, ENABLE, DISABLE } tone;
@@ -20,12 +21,12 @@ namespace beep {
 
 namespace ptime {
   typedef unsigned long int microseconds;
-  typedef unsigned int      milliseconds;
+  typedef unsigned long int milliseconds; // currently unused
 }
 
 ptime::microseconds off_by(ptime::microseconds, ptime::microseconds, boolean *);
 void pdelay(ptime::microseconds, ptime::microseconds *);
-void wait_for_press();
+boolean wait_for_press(ptime::milliseconds);
 boolean wait_was_that_a_hold();
 void raw_beep(int, int);
 void make_sound(beep::tone);
@@ -65,26 +66,37 @@ void pdelay(ptime::microseconds total, ptime::microseconds *last) {
 
 /* Attach a 10K resistor from ground to a pushbutton and pin 2. Connect the
  * other side of the button to 5V. pinMode(button_pin, INPUT); */
-void wait_for_press() {
+boolean wait_for_press(ptime::milliseconds timeout_length) {
+
+  boolean time_limited = (timeout_length > 0);
+  ptime::milliseconds timeout = millis() + ((ptime::milliseconds) timeout_length);
 
   // you've got to release the button every time
-  while (digitalRead(button_pin) != LOW) { delay(5); }
+  while (digitalRead(button_pin) != LOW) {
+    if (time_limited && (millis() >= timeout)) { return false; }
+    delay(5);
+  }
 
   // wait until the button is pressed
-  while (digitalRead(button_pin) != HIGH) { delay(5); }
+  while (digitalRead(button_pin) != HIGH) {
+    if (time_limited && (millis() >= timeout)) { return false; }
+    delay(5);
+  }
+
+  return true;
 }
 
 // pauses execution until the button is pressed and released. returns how long the button was depressed.
 boolean wait_was_that_a_hold() {
 
-  wait_for_press();
-  ptime::microseconds threshold_time = micros() + hold_threshold;
+  wait_for_press(0);
+  ptime::microseconds threshold_time = millis() + hold_threshold;
 
   // wait for button release or hold-sensing timeout
   while (digitalRead(button_pin) == HIGH) {
 
     // was the threshold reached?
-    if (micros() >= threshold_time) { return true; }
+    if (millis() >= threshold_time) { return true; }
     delay(5);
   }
 
@@ -157,7 +169,7 @@ void make_sound(beep::tone which) {
 
 // Make a sound even if user has disabled sound output
 void force_make_sound(beep::tone which) {
-  bool previous_state = speaker_enabled;
+  boolean previous_state = speaker_enabled;
   speaker_enabled = true;
   make_sound(which);
   speaker_enabled = previous_state;
@@ -241,7 +253,7 @@ void rhythm_game() {
     // the user taps enter eight times
     // we measure the clock time of each
     for (int i = 0; i < 8; i++) {
-      wait_for_press();
+      wait_for_press(0);
       timed[i] = micros();
 
       print_one(bpm_s, count[i]);
@@ -312,8 +324,18 @@ void measure_tempo() {
     (String("    ") + String(bpm_guess(time_per_beat, beat))).toCharArray(result_s, 16);
     print_one(h, result_s);
     beat++;
-    wait_for_press();
-  //} while (!wait_was_that_a_hold());
+
+    // wait a while for a keypress
+    if (!wait_for_press(tap_timeout)) {
+
+      // if we didn't get any after some time, display the option to return to the home screen
+      make_sound(beep::HI);
+      char *m[] = { "", result_s, "    Return?" };
+      print_many(h, m);
+
+      // hold returns to the main menu; tap keeps bpm-counting (for very low bpm, e.g. crew)
+      if (wait_was_that_a_hold()) { return; }
+    }
   } while (true);
 }
 
@@ -428,7 +450,7 @@ void menu() {
 
   // Display start screens to the user.
   int num_modes = array_size(titles);
-  bool chose_toggle_speaker = false;
+  boolean chose_toggle_speaker = false;
   for (int i = 0;; i = (i + 1) % num_modes) {
     print_many("    Choose:", titles[i]);
 

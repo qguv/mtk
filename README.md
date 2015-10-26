@@ -66,7 +66,7 @@ Some specifics:
 
 ## Measuring tempo
 
-Press the button once per beat. A current last-four-beat average will display on the screen. Resetting is the only way to return to the main menu; because of the time precision needed, blocking program flow for the duration of a button hold is not acceptable. You can restart the device quickly by pressing the reset button on the opposite side of the board; this does not destroy anything stored in memory, like speaker enabled/disabled settings.
+Press the button once per beat. A current last-four-beat average will display in beats per minute on the screen. If there is more than about one second between beats, "Return?" will appear under the current tempo and a high tone will play. After this tone, you can hold to return to the main menu.
 
 ## Using the entropy generator
 
