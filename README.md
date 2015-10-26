@@ -64,6 +64,10 @@ Some specifics:
   - the score is accurate to 4μs, but button pressing is not
   - the calls to `delay()` are specially designed to be very precise, on the order of 4μs or so (depending on the board), and account for screen-blit time, sound playback time, pin read/write time, calculation time, etc.
 
+## Measuring tempo
+
+Press the button once per beat. A current last-four-beat average will display on the screen. Resetting is the only way to return to the main menu; because of the time precision needed, blocking program flow for the duration of a button hold is not acceptable. You can restart the device quickly by pressing the reset button on the opposite side of the board; this does not destroy anything stored in memory, like speaker enabled/disabled settings.
+
 ## Using the entropy generator
 
 You can choose a base in the same way that you choose main menu items: tap to iterate and hold to select. The last item gives a higher beep than the others, indicating that you're moving to the first element again.
@@ -93,7 +97,7 @@ Activating the fourth menu option enables or disables sound. The start-up chime 
 If sound is disabled, you can re-enable it by doing the following:
 
   - Turn the device on
-  - Tap the button three times
+  - Tap the button four times
   - Hold the button
 
 If this was successful, you will hear the longer-than-normal rising chime.

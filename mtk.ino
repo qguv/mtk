@@ -32,6 +32,7 @@ void make_sound(beep::tone);
 void print_many(const char *, char *[3]);
 void print_one(const char *, const char *);
 void rhythm_game();
+void measure_tempo();
 void entropy();
 void information();
 void menu();
@@ -284,6 +285,39 @@ void rhythm_game() {
   }
 }
 
+float bpm_guess(ptime::microseconds tpb[4], int current_beat) {
+  ptime::microseconds the_sum = 0;
+  int n = (current_beat >= 4) ? 4 : current_beat;
+  for (int i = 0; i < n; i++) { the_sum += tpb[i]; }
+  return 60 / ((the_sum / n) / 1e6);
+}
+
+void measure_tempo() {
+  char *h = " Measure tempo:";
+  char result_s[16];
+
+  int beat = 1;
+  ptime::microseconds current;
+  ptime::microseconds time_per_beat[4];
+  ptime::microseconds last = micros();
+  print_one(h, "    Begin!");
+
+  // get first beat; quit on hold as always
+  if (wait_was_that_a_hold()) { return; }
+
+  do {
+    current = micros();
+    time_per_beat[(beat - 1) % 4] = current - last;
+    last = current;
+    make_sound(beep::LO);
+    (String("    ") + String(bpm_guess(time_per_beat, beat))).toCharArray(result_s, 16);
+    print_one(h, result_s);
+    beat++;
+    wait_for_press();
+  //} while (!wait_was_that_a_hold());
+  } while (true);
+}
+
 void entropy() {
 
   // available bases, in order
@@ -300,9 +334,7 @@ void entropy() {
   char message[3][16];
   char *message_disp[3];
 
-  make_sound(beep::RISE);
-
-  // once you're in the mode, you can't return to the menu unless you reset
+  // choose base, view entropy, repeat
   while (true) {
     base_i = 0;
 
@@ -345,10 +377,7 @@ void entropy() {
     }
 
     // if we asked to go back, do so
-    if (base == 0) {
-      make_sound(beep::FALL);
-      return;
-    }
+    if (base == 0) { return; }
 
     // user has chosen a base
     // give random numbers until user asks for another base by holding
@@ -381,6 +410,10 @@ void menu() {
                         "  rhythm game"},
 
                        {"",
+                        "    Measure",
+                        "     tempo"},
+
+                       {"",
                         "    Collect",
                         "    entropy"},
 
@@ -392,21 +425,28 @@ void menu() {
                         "    Toggle",
                         "     sound"}};
 
-  void (*funcs[])() = {rhythm_game, entropy, information, toggle_speaker};
+  void (*funcs[])() = {rhythm_game, measure_tempo, entropy, information, toggle_speaker};
 
   // Display start screens to the user.
   int num_modes = array_size(titles);
+  bool chose_toggle_speaker = false;
   for (int i = 0;; i = (i + 1) % num_modes) {
     print_many("    Choose:", titles[i]);
 
     // if the user holds the button,
     if (wait_was_that_a_hold()) {
 
-      // execute the chosen menu option
-      funcs[i]();
+      // if use picked the last one, don't make beeps
+      chose_toggle_speaker = (i == (num_modes - 1));
 
-      // when we come back, return to the menu option we were just on
-      i--;
+      // otherwise make start and finish beeps
+      if (!chose_toggle_speaker) { make_sound(beep::RISE); }
+
+      // execute the chosen menu option, and set up to return to the same menu item
+      funcs[i--]();
+
+      // beep once task finished unless it's been disabled
+      if (!chose_toggle_speaker) { make_sound(beep::FALL); }
 
     // if the user taps the button, go to the next option
     } else {
@@ -440,8 +480,6 @@ void information() {
                         "      117",
                         "2521EK Den Haag"}};
 
-  make_sound(beep::RISE);
-
   // cycle through info pages on press, exit on hold
   int pages = array_size(titles);
   for (int i = 0;; i = (i + 1) % pages) {
@@ -450,10 +488,7 @@ void information() {
     print_many(titles[i], bodies[i]);
 
     // next page on press, exit on hold
-    if (wait_was_that_a_hold()) {
-      make_sound(beep::FALL);
-      return;
-    }
+    if (wait_was_that_a_hold()) { return; }
     if (i == pages - 1) {
       make_sound(beep::HI);
     } else {
@@ -472,7 +507,6 @@ void setup() {
   speaker_enabled = !(EEPROM.read(0) == 0);
 
   // seed the random generator
-  Serial.begin(9600);
   long int seed = 0;
 
   // we'll make a random seed by sampling bits of noise until we've filled a
@@ -494,13 +528,12 @@ void setup() {
   digitalWrite(buzzer_pin, LOW);
 
   u8g.firstPage();
-  //u8g.setRot180();
 }
 
 void loop() {
   char *greeting[3] = {"  Compiled on", "  " __DATE__, "  at " __TIME__};
-  print_many(" ~    mtk    ~", greeting);
+  print_many("      MTK     ", greeting);
   force_make_sound(beep::CHIME);
-  delay(400);
+  delay(350);
   menu();
 }
