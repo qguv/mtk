@@ -43,11 +43,12 @@ Here is extremely detailed information on menu sound cues and other technicaliti
 After displaying information on time/date of compilation, the main menu will appear, allowing you to select one of many different operating modes. Tap the button to iterate through the menu. Each tap produces a "low" beep. A "high" beep is produced after you cycle past the last menu item, returning you to the first menu item. The items, in order, are:
 
   - Play a rhythm game
+  - Measure tempo
   - Collect entropy
   - View info
   - Toggle sound
 
-When you return to the main menu, you are placed at the title of the menu you just left. When you return from "view info", for instance, the main menu will display "view info", meaning you would tap once to select "toggle sound", twice to select "play a rhythm game", and three times to select "collect entropy".
+When you return to the main menu, you are placed at the title of the menu you just left. When you return from "view info", for instance, the main menu will display "view info", meaning you would tap once to select "toggle sound", twice to select "play a rhythm game", etc.
 
 ## Rhythm game gameplay
 
@@ -60,7 +61,7 @@ Some specifics:
   - you can pause between the machine's 8 beats and your 8 beats--it won't count against you
   - the only thing that's (currently) measured is the first and last beats; you can rush through beats 2 through 7 and it won't count against you as long as you end up pressing beat 8 at the right time
   - the game always repeats at the same tempo until you return to the menu
-  - the score is accurate to 4μs
+  - the score is accurate to 4μs, but button pressing is not
   - the calls to `delay()` are specially designed to be very precise, on the order of 4μs or so (depending on the board), and account for screen-blit time, sound playback time, pin read/write time, calculation time, etc.
 
 ## Using the entropy generator
@@ -100,6 +101,9 @@ If this was successful, you will hear the longer-than-normal rising chime.
 ## Development todo
 
   - unify all menu code so it's easier to program menus with consistent operation and sound cues
+  - unify all press-to-count cues (part two of rhythm game + tempo counter)
+  - chronograph
+  - count up
   - more sophisticated statistics in the rhythm game
   - a more sophisticated rhythm game
   - more modes!
