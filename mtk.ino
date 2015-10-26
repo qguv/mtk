@@ -66,43 +66,29 @@ void pdelay(ptime::microseconds total, ptime::microseconds *last) {
  * other side of the button to 5V. pinMode(button_pin, INPUT); */
 void wait_for_press() {
 
-  // read the pushbutton input pin
-  unsigned int button_state = digitalRead(button_pin);
-
   // you've got to release the button every time
-  while (button_state != LOW) {
-    delay(5);
-    button_state = digitalRead(button_pin);
-  }
+  while (digitalRead(button_pin) != LOW) { delay(5); }
 
   // wait until the button is pressed
-  while (button_state != HIGH) {
-    delay(5);
-    button_state = digitalRead(button_pin);
-  }
+  while (digitalRead(button_pin) != HIGH) { delay(5); }
 }
 
 // pauses execution until the button is pressed and released. returns how long the button was depressed.
 boolean wait_was_that_a_hold() {
 
   wait_for_press();
-  ptime::microseconds start = micros();
-  unsigned int button_state;
+  ptime::microseconds threshold_time = micros() + hold_threshold;
 
   // wait for button release or hold-sensing timeout
-  while (true) {
+  while (digitalRead(button_pin) == HIGH) {
+
+    // was the threshold reached?
+    if (micros() >= threshold_time) { return true; }
     delay(5);
-    button_state = digitalRead(button_pin);
-
-    // hold-sensing timeout reached
-    if ((micros() - start) > hold_threshold) {
-      return true;
-
-    // button released before timeout expired
-    } else if (button_state == LOW) {
-      return false;
-    }
   }
+
+  // ... or did we lift the button up before that?
+  return false;
 }
 
 // Add to a digital out, remember to pinMode(buzzer_pin, OUTPUT).
