@@ -165,6 +165,12 @@ void make_sound(beep::tone which) {
   }
 }
 
+void generate_delta_report(char *to_populate, ptime::microseconds ideal, ptime::microseconds actual) {
+  bool is_late;
+  ptime::microseconds error = off_by(ideal, actual, &is_late);
+  (String("  ") + String(error / 1e3, 0) + String(is_late ? "ms late" : "ms early")).toCharArray(to_populate, 16);
+}
+
 // Make a sound even if user has disabled sound output
 void force_make_sound(beep::tone which) {
   boolean previous_state = speaker_enabled;
@@ -196,6 +202,30 @@ void print_one(const char *bpm, const char *body) {
   print_many(bpm, body_wrap);
 }
 
+void reaction_time() {
+  const char *h = " Reaction test";
+  char *messages[] = { "", "", "    again?"};
+  char delta_report[16];
+  ptime::microseconds before, rtime;
+  do {
+    print_one(h, "   Ready...");
+    delay(1000);
+    print_one(h, "");
+    delay(random(100, 10000));
+    print_one(h, "      !!!");
+    before = micros();
+    wait_for_press(0);
+    make_sound(beep::LO);
+    generate_delta_report(delta_report, before, micros());
+    print_one(h, delta_report);
+    delay(1000);
+    messages[1] = delta_report;
+    make_sound(beep::HI);
+    print_many(h, messages);
+
+  } while (wait_for_hold(0) != button::HOLD);
+}
+
 void rhythm_game() {
 
   // pick a tempo
@@ -209,7 +239,6 @@ void rhythm_game() {
   // prepare an array to store time measurements
   ptime::microseconds timed[8];
 
-  // prepare phrases
   char *count[] = {"       1",
                    "       2",
                    "       3",
@@ -222,11 +251,8 @@ void rhythm_game() {
   char *go[]    = {"", "       8", "      Go!"};
   char *again[] = {"", "", "    again?"};
 
-  // prepare other variables
-  ptime::microseconds ideal, error, last_beat;
-  boolean is_late;
   char result_s[16];
-
+  ptime::microseconds ideal, error, last_beat;
   last_beat = micros();
   print_one(bpm_s, "");
   pdelay(uspb, &last_beat);
@@ -269,17 +295,12 @@ void rhythm_game() {
      * perfect timekeeper would tap the eighth and final beat. */
     ideal = timed[0] + (uspb * 7);
 
-    /* We then compare the user's final beat and the ideal final beat to
-     * determine how far off the user was in total. */
-    error = off_by(ideal, timed[7], &is_late);
-
-    // prepare results
-    (String("  ") + String(error / 1e3, 0) + String(is_late ? "ms late" : "ms early")).toCharArray(result_s, 16);
-
     // delay on the beat, but not for too long
     pdelay((bpm > 130 ? 4 : 2) * uspb, &last_beat);
 
-    // show results
+    /* We then compare the user's final beat and the ideal final beat to
+     * determine how far off the user was in total. */
+    generate_delta_report(result_s, ideal, timed[7]);
     print_one(bpm_s, result_s);
     make_sound(beep::RISE);
 
@@ -434,6 +455,10 @@ void menu() {
                         "  rhythm game"},
 
                        {"",
+                        "   Reaction",
+                        "     time"},
+
+                       {"",
                         "    Measure",
                         "     tempo"},
 
@@ -449,7 +474,7 @@ void menu() {
                         "    Toggle",
                         "     sound"}};
 
-  void (*funcs[])() = {rhythm_game, measure_tempo, entropy, information, toggle_speaker};
+  void (*funcs[])() = {rhythm_game, reaction_time, measure_tempo, entropy, information, toggle_speaker};
 
   // Display start screens to the user.
   int num_modes = array_size(titles);
